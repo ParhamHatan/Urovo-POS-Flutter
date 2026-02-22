@@ -1,5 +1,12 @@
 # Urovo POS
 
+[![pub package](https://img.shields.io/pub/v/urovo_pos.svg)](https://pub.dev/packages/urovo_pos)
+[![Coverage Status](https://coveralls.io/repos/github/ParhamHatan/Urovo-POS-Flutter/badge.svg)](https://coveralls.io/github/ParhamHatan/Urovo-POS-Flutter)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Issues](https://img.shields.io/github/issues/ParhamHatan/Urovo-POS-Flutter)](https://github.com/ParhamHatan/Urovo-POS-Flutter/issues)
+[![GitHub Stars](https://img.shields.io/github/stars/ParhamHatan/Urovo-POS-Flutter?style=social)](https://github.com/ParhamHatan/Urovo-POS-Flutter/stargazers)
+[![Platform](https://img.shields.io/badge/Platform-Android-blue.svg)](https://flutter.dev)
+
 Standalone Flutter plugin for Urovo POS devices, designed for incremental feature delivery.
 
 `v0.1.0` implements **printing** only and is structured for future additions (scanner, beeper, pinpad) in the same package.

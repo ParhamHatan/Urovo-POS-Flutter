@@ -1,5 +1,5 @@
 name: urovo_pos
-description: Urovo POS Flutter plugin (printing first) without bundled vendor SDK binaries.
+description: Flutter plugin for Urovo POS (Android), starting with printer APIs and modular feature expansion.
 version: 0.1.0
 
 repository: https://github.com/ParhamHatan/Urovo-POS-Flutter
