@@ -1,6 +1,5 @@
 ## 0.1.0
 
-- Rewritten and restructured plugin using standalone architecture from `UROVO_STANDALONE_PLUGIN_PRINTING_GUIDE.md`.
 - Set printer as the first production feature (`v0.1.0`) with a modular structure for future features.
 - Added printer-first public API:
   - `isUrovoSdkAvailable`
