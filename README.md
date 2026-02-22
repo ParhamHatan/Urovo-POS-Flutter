@@ -1,4 +1,4 @@
-# urovo_pos
+# Urovo POS
 
 Standalone Flutter plugin for Urovo POS devices, designed for incremental feature delivery.
 
