@@ -1,3 +1,8 @@
+## 0.1.1
+
+- Added README badges (pub version, coverage, license, issues, stars, platform).
+- Improved package metadata text in `pubspec.yaml`.
+
 ## 0.1.0
 
 - Set printer as the first production feature (`v0.1.0`) with a modular structure for future features.
