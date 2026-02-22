@@ -1,3 +1,11 @@
+## 0.1.2
+
+- Added real POS feature-test run instructions in README (`Run example on real POS`).
+- Hardened Android bridge behavior:
+  - `printerClose` now surfaces close failures as typed errors.
+  - Broadened `PrinterProviderImpl` reflection instantiation fallbacks.
+- Updated integration/architecture docs to align with manual lifecycle and current version references.
+
 ## 0.1.1
 
 - Added README badges (pub version, coverage, license, issues, stars, platform).
