@@ -9,11 +9,11 @@
 
 Standalone Flutter plugin for Urovo POS devices, designed for incremental feature delivery.
 
-`v0.1.0` implements **printing** only and is structured for future additions (scanner, beeper, pinpad) in the same package.
+`v0.1.x` implements **printing** only and is structured for future additions (scanner, beeper, pinpad) in the same package.
 
 Tested on Urovo SDK version `v1.0.13`.
 
-## v0.1.0 scope (printer)
+## v0.1.x scope (printer)
 
 - Runtime SDK availability check (`isUrovoSdkAvailable`)
 - Printer lifecycle
@@ -87,6 +87,37 @@ repositories {
     }
 }
 ```
+
+## Run example on real POS (feature test)
+
+1. Put the vendor AAR in the example app:
+
+   `example/android/app/libs/urovoSDK-v1.0.13.aar`
+
+2. Connect your Urovo POS and confirm Flutter sees it:
+
+```bash
+flutter devices
+```
+
+3. Run the example app on the POS:
+
+```bash
+cd example
+flutter pub get
+flutter run
+```
+
+4. In the example UI, use this test flow:
+   - `Check SDK`
+   - `Init Printer`
+   - `Get Status`
+   - `Print Sample Text`
+   - `Print Table Demo`
+   - `Print Demo Receipt`
+   - `Close Printer`
+
+5. Confirm logs show successful operations and printed output matches commands.
 
 ## Quick usage
 

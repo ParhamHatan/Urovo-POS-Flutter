@@ -2,6 +2,9 @@
 
 - Added README badges (pub version, coverage, license, issues, stars, platform).
 - Improved package metadata text in `pubspec.yaml`.
+- Updated docs/examples to use `^0.1.1` and explicit manual printer lifecycle (`printerInit`/`printerClose`).
+- Improved Android bridge compatibility by broadening provider instantiation fallbacks.
+- `printerClose` now surfaces close failures as typed plugin errors instead of swallowing them.
 
 ## 0.1.0
 

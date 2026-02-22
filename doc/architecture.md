@@ -6,7 +6,7 @@
 - Runtime reflection boundary for vendor SDK integration.
 - Feature-first structure so scanner/beeper/pinpad can be added without API churn.
 
-## Current module layout (v0.1.0)
+## Current module layout (v0.1.x)
 
 - Dart public facade:
   - `lib/urovo_pos.dart`
@@ -50,11 +50,14 @@ Android returns structured payloads for every handled method:
 
 ## Reflection boundary
 
-Reflection target classes:
+Primary reflection target classes:
 
 - `com.urovo.sdk.print.PrinterProviderImpl`
-- `com.urovo.sdk.print.PrintStatus`
 - `com.google.zxing.BarcodeFormat`
+
+Optional runtime class for vendor status descriptions:
+
+- `com.urovo.sdk.print.PrintStatus`
 
 Bridge invokes methods like:
 

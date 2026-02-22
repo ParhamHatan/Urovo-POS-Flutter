@@ -1,10 +1,10 @@
-# Carbon POS Integration
+# Urovo POS Integration
 
 ## 1. Add dependency
 
 ```yaml
 dependencies:
-  urovo_pos: ^0.1.0
+  urovo_pos: ^0.1.1
 ```
 
 For local workspace integration:
@@ -45,9 +45,14 @@ if (!available) {
   // show setup error
 }
 
-final status = await UrovoPos.printerGetStatusDetail();
-if (status.status != UrovoPrinterStatus.ok) {
-  // show status.message + status.recommendation
+await UrovoPos.printerInit();
+try {
+  final status = await UrovoPos.printerGetStatusDetail();
+  if (status.status != UrovoPrinterStatus.ok) {
+    // show status.message + status.recommendation
+  }
+} finally {
+  await UrovoPos.printerClose();
 }
 ```
 
@@ -70,7 +75,12 @@ final job = UrovoPrintJob()
   ..qr('https://urovo.example/receipt/1')
   ..feedLine(2);
 
-await UrovoPos.printerRunJob(job);
+await UrovoPos.printerInit();
+try {
+  await UrovoPos.printerRunJob(job);
+} finally {
+  await UrovoPos.printerClose();
+}
 ```
 
 ## 5. Error handling

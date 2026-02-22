@@ -200,6 +200,35 @@ internal class UrovoPosPluginTest {
     }
 
     @Test
+    fun onMethodCall_printerClose_whenBridgeThrowsPluginException_returnsErrorResponse() {
+        val details = mapOf(
+            "statusDetail" to mapOf(
+                "status" to "paperEnded",
+                "rawCode" to 240,
+            ),
+        )
+        val bridge = FakePrinterBridge().apply {
+            closeError = UrovoPluginException(
+                errorCode = "device_unavailable",
+                message = "close failed with status code 240.",
+                details = details,
+            )
+        }
+        val plugin = UrovoPosPlugin(bridge)
+        val result = CapturingResult()
+
+        plugin.onMethodCall(MethodCall("printerClose", null), result)
+
+        assertEquals(1, bridge.closeCalls)
+        assertErrorResponse(
+            result = result,
+            code = "device_unavailable",
+            message = "close failed with status code 240.",
+            data = details,
+        )
+    }
+
+    @Test
     fun onMethodCall_whenBridgeThrowsPluginException_returnsErrorResponse() {
         val details = mapOf(
             "statusDetail" to mapOf(

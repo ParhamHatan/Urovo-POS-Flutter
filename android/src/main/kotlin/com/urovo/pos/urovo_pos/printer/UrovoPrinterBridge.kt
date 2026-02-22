@@ -15,13 +15,7 @@ internal class UrovoPrinterBridge(
     private var isPrinterInitialized = false
 
     override fun isSdkAvailable(): Boolean {
-        return try {
-            Class.forName(PRINTER_PROVIDER_CLASS)
-            Class.forName(PRINT_STATUS_CLASS)
-            true
-        } catch (_: ClassNotFoundException) {
-            false
-        }
+        return hasClass(PRINTER_PROVIDER_CLASS)
     }
 
     override fun printerInit() {
@@ -45,11 +39,19 @@ internal class UrovoPrinterBridge(
             isPrinterInitialized = false
             return
         }
-        runCatching {
-            invokeInt(provider, "close")
+        try {
+            val closeCode = invokeInt(provider, "close")
+            if (closeCode != STATUS_OK) {
+                throw UrovoPluginException(
+                    errorCode = "device_unavailable",
+                    message = "close failed with status code $closeCode.",
+                    details = mapOf("statusDetail" to statusDetailForCode(closeCode)),
+                )
+            }
+        } finally {
+            isPrinterInitialized = false
+            printerProvider = null
         }
-        isPrinterInitialized = false
-        printerProvider = null
     }
 
     override fun printerGetStatusDetail(): Map<String, Any> {
@@ -281,8 +283,18 @@ internal class UrovoPrinterBridge(
         val provider = runCatching {
             val getInstanceMethod = providerClass.getMethod("getInstance", Context::class.java)
             getInstanceMethod.invoke(null, appContext)
-        }.getOrElse {
+        }.recoverCatching {
+            val getInstanceMethod = providerClass.getMethod("getInstance")
+            getInstanceMethod.invoke(null)
+        }.recoverCatching {
+            providerClass.getDeclaredConstructor(Context::class.java).newInstance(appContext)
+        }.recoverCatching {
             providerClass.getDeclaredConstructor().newInstance()
+        }.getOrElse { error ->
+            throw UrovoPluginException(
+                errorCode = "internal",
+                message = "Unable to instantiate PrinterProviderImpl: ${error.message ?: "Unknown error."}",
+            )
         }
 
         if (provider == null) {
@@ -294,6 +306,15 @@ internal class UrovoPrinterBridge(
 
         printerProvider = provider
         return provider
+    }
+
+    private fun hasClass(className: String): Boolean {
+        return try {
+            Class.forName(className)
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        }
     }
 
     private fun requireInitializedPrinterProvider(operationName: String): Any {
