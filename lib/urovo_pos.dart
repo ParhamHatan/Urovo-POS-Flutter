@@ -22,7 +22,6 @@ export 'package:urovo_pos/src/printer/urovo_text_style.dart';
 ///
 /// This API exposes printer lifecycle operations and high-level helpers.
 abstract final class UrovoPos {
-
   /// Returns whether Urovo SDK classes are available at runtime.
   static Future<bool> isUrovoSdkAvailable() {
     return UrovoPosPlatform.instance.isUrovoSdkAvailable();
