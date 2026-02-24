@@ -4,7 +4,7 @@
 
 ```yaml
 dependencies:
-  urovo_pos: ^0.1.1
+  urovo_pos: ^0.2.0
 ```
 
 For local workspace integration:
@@ -94,3 +94,33 @@ Catch `UrovoPrinterException` and branch by type:
 - `internal`
 
 Use `error.statusDetail` (if present) to display actionable guidance.
+
+## 6. Scanner flow (v0.2.0)
+
+```dart
+final sub = UrovoPos.scannerEvents.listen((event) {
+  switch (event.type) {
+    case UrovoScannerEventType.decoded:
+      final payload = event.result?.data ?? '';
+      // use payload
+      break;
+    case UrovoScannerEventType.error:
+      // show event.errorCode + event.message
+      break;
+    case UrovoScannerEventType.timeout:
+      // show timeout UI
+      break;
+    case UrovoScannerEventType.canceled:
+      // user canceled
+      break;
+    case UrovoScannerEventType.unknown:
+      // fallback logging
+      break;
+  }
+});
+
+await UrovoPos.scannerStart(timeout: const Duration(seconds: 10));
+// later...
+await UrovoPos.scannerStop();
+await sub.cancel();
+```

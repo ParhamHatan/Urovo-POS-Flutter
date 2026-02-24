@@ -1,3 +1,11 @@
+## 0.2.0
+
+- Added scanner APIs (`scannerStart`, `scannerStop`) and scanner event streams (`scannerEvents`, `scannerDecodedStream`).
+- Added Android scanner reflection bridge for Urovo SDK (`InnerScannerImpl` + `ScannerListener`) with EventChannel callback delivery.
+- Added scanner models (`UrovoScannerEvent`, `UrovoScanResult`) and scanner parsing tests.
+- Updated example app with `Start Scan` / `Stop Scan` actions and scan event logs.
+- Updated README and docs for scanner usage and `v0.2.0` roadmap progress.
+
 ## 0.1.4
 
 - Added custom font asset support for printer text rendering, including example app usage and documentation.

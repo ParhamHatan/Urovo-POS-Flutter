@@ -1,6 +1,8 @@
 /// Method-channel implementation internals for the `urovo_pos` plugin.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:urovo_pos/src/exceptions/urovo_printer_exception.dart';
@@ -8,6 +10,9 @@ import 'package:urovo_pos/src/printer/printer_channel_contract.dart';
 import 'package:urovo_pos/src/printer/urovo_print_job.dart';
 import 'package:urovo_pos/src/printer/urovo_printer_status.dart';
 import 'package:urovo_pos/src/printer/urovo_printer_status_detail.dart';
+import 'package:urovo_pos/src/scanner/scanner_channel_contract.dart';
+import 'package:urovo_pos/src/scanner/urovo_scan_result.dart';
+import 'package:urovo_pos/src/scanner/urovo_scanner_event.dart';
 import 'package:urovo_pos/urovo_pos_platform_interface.dart';
 
 /// Default Android method-channel implementation for [UrovoPosPlatform].
@@ -20,6 +25,14 @@ class MethodChannelUrovoPos extends UrovoPosPlatform {
   final MethodChannel methodChannel = const MethodChannel(
     PrinterChannelContract.channelName,
   );
+
+  /// Underlying event channel used for scanner callback events.
+  @visibleForTesting
+  final EventChannel scannerEventChannel = const EventChannel(
+    ScannerChannelContract.eventChannelName,
+  );
+
+  Stream<UrovoScannerEvent>? _scannerEvents;
 
   @override
   Future<bool> isUrovoSdkAvailable() async {
@@ -65,6 +78,34 @@ class MethodChannelUrovoPos extends UrovoPosPlatform {
   @override
   Future<void> printerClose() async {
     await _invokeData(PrinterChannelContract.printerClose);
+  }
+
+  @override
+  Future<void> scannerStart({
+    required int cameraId,
+    required int timeoutMs,
+  }) async {
+    await _invokeData(ScannerChannelContract.scannerStart, <String, Object>{
+      'cameraId': cameraId,
+      'timeoutMs': timeoutMs,
+    });
+  }
+
+  @override
+  Future<void> scannerStop() async {
+    await _invokeData(ScannerChannelContract.scannerStop);
+  }
+
+  @override
+  Stream<UrovoScannerEvent> get scannerEvents {
+    return _scannerEvents ??= scannerEventChannel.receiveBroadcastStream().map(_toScannerEvent);
+  }
+
+  @override
+  Stream<UrovoScanResult> get scannerDecodedStream {
+    return scannerEvents
+        .where((event) => event.type == UrovoScannerEventType.decoded && event.result != null)
+        .map((event) => event.result!);
   }
 
   Future<dynamic> _invokeData(
@@ -147,6 +188,17 @@ class MethodChannelUrovoPos extends UrovoPosPlatform {
       type: UrovoPrinterExceptionType.internal,
       message: 'Invalid response payload for $method. Expected map data.',
     );
+  }
+
+  UrovoScannerEvent _toScannerEvent(dynamic raw) {
+    if (raw is! Map) {
+      throw const UrovoPrinterException(
+        type: UrovoPrinterExceptionType.internal,
+        message: 'Invalid scanner event payload. Expected map data.',
+      );
+    }
+
+    return UrovoScannerEvent.fromMap(Map<dynamic, dynamic>.from(raw));
   }
 }
 

@@ -9,11 +9,11 @@
 
 Standalone Flutter plugin for Urovo POS devices, designed for incremental feature delivery.
 
-`v0.1.x` implements **printing** only and is structured for future additions (scanner, beeper, pinpad) in the same package.
+`v0.2.0` implements **printing + scanner** and keeps a modular structure for future additions (beeper, pinpad) in the same package.
 
 Tested on Urovo SDK version `v1.0.13`.
 
-## v0.1.x scope (printer)
+## v0.2.0 scope
 
 - Runtime SDK availability check (`isUrovoSdkAvailable`)
 - Printer lifecycle
@@ -37,10 +37,14 @@ Tested on Urovo SDK version `v1.0.13`.
   - `paperFeed`
 - Built-in demo helper: `printSample()`
   - `printSample()` only builds/runs the sample job; it does not auto-call `printerInit`/`printerClose`.
+- Scanner APIs
+  - `scannerStart(...)`
+  - `scannerStop()`
+  - `scannerEvents` (typed event stream)
+  - `scannerDecodedStream` (decoded payload stream)
 
 ## Upcoming features (roadmap)
 
-- `v0.2.0`: scanner APIs (scan start/stop + decoded payload stream)
 - `v0.3.0`: beeper APIs + shared device status utilities
 - `v0.4.0`: pinpad wrappers (non-sensitive operations only)
 - `v0.5.0`: capability registry (`isPrinterAvailable`, `isScannerAvailable`, `isPinpadAvailable`)
@@ -116,6 +120,8 @@ flutter run
    - `Print Table Demo`
    - `Print Demo Receipt`
    - `Close Printer`
+   - `Start Scan` (scan a barcode/QR and observe logs)
+   - `Stop Scan`
 
 5. Confirm logs show successful operations and printed output matches commands.
 
@@ -189,6 +195,46 @@ Important notes:
    - `await UrovoPos.printerRunJob(job);`
    - `await UrovoPos.printerClose();`
 
+## Scanner usage (v0.2.0)
+
+```dart
+import 'dart:async';
+import 'package:urovo_pos/urovo_pos.dart';
+
+late final StreamSubscription<UrovoScannerEvent> sub;
+
+Future<void> startScanFlow() async {
+  sub = UrovoPos.scannerEvents.listen((event) {
+    switch (event.type) {
+      case UrovoScannerEventType.decoded:
+        print('Decoded: ${event.result?.data}');
+        break;
+      case UrovoScannerEventType.timeout:
+        print('Scan timeout');
+        break;
+      case UrovoScannerEventType.error:
+        print('Scanner error: ${event.errorCode} ${event.message}');
+        break;
+      case UrovoScannerEventType.canceled:
+        print('Scan canceled');
+        break;
+      case UrovoScannerEventType.unknown:
+        print('Unknown scanner event');
+        break;
+    }
+  });
+
+  await UrovoPos.scannerStart(timeout: const Duration(seconds: 10));
+}
+
+Future<void> stopScanFlow() async {
+  await UrovoPos.scannerStop();
+  await sub.cancel();
+}
+```
+
+Scanner callbacks are delivered through `scannerEvents`, and decoded payloads only are available via `scannerDecodedStream`.
+
 ## Lifecycle contract (manual)
 
 This plugin uses manual lifecycle control. It does not auto-open or auto-close printer sessions.
@@ -236,3 +282,4 @@ Mapped printer status enum:
 - `device_unavailable`: printer init/status failed (paper, voltage, hardware, busy).
 - `print_failed`: `startPrint` failed. Check status detail message and recommendation.
 - `invalid_argument`: malformed job payload or invalid gray/input values.
+- Scanner errors/timeouts/cancel events are delivered via `scannerEvents` instead of throwing exceptions.
