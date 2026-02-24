@@ -1,6 +1,8 @@
 package com.urovo.pos.urovo_pos.printer
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Bundle
 import android.util.Base64
 import com.urovo.pos.urovo_pos.UrovoPluginException
@@ -177,15 +179,14 @@ internal class UrovoPrinterBridge(
                 val height = (command["height"] as? Number)?.toInt() ?: 100
                 val align = alignValue(command["align"] as? String)
                 val barcodeType = resolveBarcodeFormat(command["barcodeType"] as? String)
-                val bundle = Bundle().apply {
-                    putInt(KEY_ALIGN, align)
-                    putInt(KEY_WIDTH, width)
-                    putInt(KEY_HEIGHT, height)
-                    if (barcodeType is Serializable) {
-                        putSerializable(KEY_BARCODE_TYPE, barcodeType)
-                    }
-                }
-                invokeUnit(provider, "addBarCode", bundle, data)
+                appendBarcode(
+                    provider = provider,
+                    data = data,
+                    width = width,
+                    height = height,
+                    align = align,
+                    barcodeType = barcodeType,
+                )
             }
 
             "qr" -> {
@@ -196,11 +197,12 @@ internal class UrovoPrinterBridge(
                     )
                 val expectedHeight = (command["expectedHeight"] as? Number)?.toInt() ?: 120
                 val align = alignValue(command["align"] as? String)
-                val bundle = Bundle().apply {
-                    putInt(KEY_ALIGN, align)
-                    putInt(KEY_EXPECTED_HEIGHT, expectedHeight)
-                }
-                invokeUnit(provider, "addQrCode", bundle, data)
+                appendQrCode(
+                    provider = provider,
+                    data = data,
+                    expectedHeight = expectedHeight,
+                    align = align,
+                )
             }
 
             "imageBytes" -> {
@@ -274,6 +276,195 @@ internal class UrovoPrinterBridge(
                 message = "Urovo SDK classes were not found. Add urovoSDK*.aar to your Android app module.",
             )
         }
+    }
+
+    private fun appendBarcode(
+        provider: Any,
+        data: String,
+        width: Int,
+        height: Int,
+        align: Int,
+        barcodeType: Any?,
+    ) {
+        if (tryAppendBarcodeWithNearestNeighborScaling(provider, data, width, height, align, barcodeType)) {
+            return
+        }
+
+        // Fallback to vendor helper if custom bitmap path is unavailable.
+        val bundle = Bundle().apply {
+            putInt(KEY_ALIGN, align)
+            putInt(KEY_WIDTH, width)
+            putInt(KEY_HEIGHT, height)
+            if (barcodeType is Serializable) {
+                putSerializable(KEY_BARCODE_TYPE, barcodeType)
+            }
+        }
+        invokeUnit(provider, "addBarCode", bundle, data)
+    }
+
+    private fun appendQrCode(
+        provider: Any,
+        data: String,
+        expectedHeight: Int,
+        align: Int,
+    ) {
+        if (tryAppendQrCodeWithQuietZone(provider, data, expectedHeight, align)) {
+            return
+        }
+
+        // Fallback to vendor helper if custom bitmap path is unavailable.
+        val bundle = Bundle().apply {
+            putInt(KEY_ALIGN, align)
+            putInt(KEY_EXPECTED_HEIGHT, expectedHeight)
+        }
+        invokeUnit(provider, "addQrCode", bundle, data)
+    }
+
+    private fun tryAppendBarcodeWithNearestNeighborScaling(
+        provider: Any,
+        data: String,
+        width: Int,
+        height: Int,
+        align: Int,
+        barcodeType: Any?,
+    ): Boolean {
+        val effectiveFormat = barcodeType ?: resolveBarcodeFormat(type = null) ?: return false
+        val rawBitmap = createBarcodeBitmap(data, height, effectiveFormat) ?: return false
+        var finalBitmap: Bitmap? = null
+
+        return runCatching {
+            finalBitmap = scaleBarcodeBitmapNearestNeighbor(rawBitmap, width, height)
+            invokeInt(provider, "appendBitmap", finalBitmap, align)
+            true
+        }.getOrElse {
+            false
+        }.also {
+            finalBitmap?.let { bitmap ->
+                if (bitmap !== rawBitmap && !bitmap.isRecycled) {
+                    bitmap.recycle()
+                }
+            }
+            if (!rawBitmap.isRecycled) {
+                rawBitmap.recycle()
+            }
+        }
+    }
+
+    private fun tryAppendQrCodeWithQuietZone(
+        provider: Any,
+        data: String,
+        expectedHeight: Int,
+        align: Int,
+    ): Boolean {
+        val size = if (expectedHeight > 0) expectedHeight else DEFAULT_QR_SIZE
+        val qrBitmap = createQrBitmap(data = data, size = size) ?: return false
+
+        return runCatching {
+            invokeInt(provider, "appendBitmap", qrBitmap, align)
+            true
+        }.getOrElse {
+            false
+        }.also {
+            if (!qrBitmap.isRecycled) {
+                qrBitmap.recycle()
+            }
+        }
+    }
+
+    private fun createBarcodeBitmap(
+        data: String,
+        height: Int,
+        barcodeFormat: Any,
+    ): Bitmap? {
+        return runCatching {
+            val encodingHandlerClass = Class.forName(ENCODING_HANDLER_CLASS)
+            val barcodeFormatClass = Class.forName(BARCODE_FORMAT_CLASS)
+            val method = encodingHandlerClass.getMethod(
+                "creatBarcode",
+                String::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Boolean::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                barcodeFormatClass,
+            )
+            method.invoke(
+                null,
+                data,
+                1, // Vendor helper uses module width 1 and scales afterward.
+                height,
+                false, // Do not render human-readable text under the bars.
+                1,
+                barcodeFormat,
+            ) as? Bitmap
+        }.getOrNull()
+    }
+
+    private fun createQrBitmap(
+        data: String,
+        size: Int,
+    ): Bitmap? {
+        // Prefer EncodingHandler.createQRImage(...) because it leaves ZXing defaults intact
+        // (notably the quiet zone), while PrinterProviderImpl.addQrCode() forces margin=0.
+        val encodingHandlerBitmap = runCatching {
+            val encodingHandlerClass = Class.forName(ENCODING_HANDLER_CLASS)
+            val method = encodingHandlerClass.getMethod(
+                "createQRImage",
+                String::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+            )
+            method.invoke(
+                null,
+                data,
+                size,
+                size,
+            ) as? Bitmap
+        }.getOrNull()
+        if (encodingHandlerBitmap != null) {
+            return encodingHandlerBitmap
+        }
+
+        // Fallback to QRCodeUtil with explicit quiet zone if EncodingHandler API changes.
+        return runCatching {
+            val qrCodeUtilClass = Class.forName(QR_CODE_UTIL_CLASS)
+            val method = qrCodeUtilClass.getMethod(
+                "createQRCodeBitmap",
+                String::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                String::class.java,
+                String::class.java,
+                String::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+            )
+            method.invoke(
+                null,
+                data,
+                size,
+                size,
+                "UTF-8",
+                "L",
+                "4",
+                Color.BLACK,
+                Color.WHITE,
+            ) as? Bitmap
+        }.getOrNull()
+    }
+
+    private fun scaleBarcodeBitmapNearestNeighbor(
+        rawBitmap: Bitmap,
+        width: Int,
+        height: Int,
+    ): Bitmap {
+        if (width <= 0 || height <= 0) {
+            return rawBitmap
+        }
+        if (rawBitmap.width == width && rawBitmap.height == height) {
+            return rawBitmap
+        }
+        return Bitmap.createScaledBitmap(rawBitmap, width, height, false)
     }
 
     private fun ensurePrinterProvider(): Any {
@@ -539,6 +730,8 @@ internal class UrovoPrinterBridge(
     private companion object {
         private const val PRINTER_PROVIDER_CLASS = "com.urovo.sdk.print.PrinterProviderImpl"
         private const val PRINT_STATUS_CLASS = "com.urovo.sdk.print.PrintStatus"
+        private const val ENCODING_HANDLER_CLASS = "com.urovo.sdk.print.EncodingHandler"
+        private const val QR_CODE_UTIL_CLASS = "com.urovo.sdk.print.QRCodeUtil"
         private const val BARCODE_FORMAT_CLASS = "com.google.zxing.BarcodeFormat"
 
         private const val KEY_ALIGN = "align"
@@ -567,5 +760,7 @@ internal class UrovoPrinterBridge(
         private const val STATUS_OVERHEAT = 243
         private const val STATUS_BUSY = 247
         private const val STATUS_MOTOR_ERROR = 251
+
+        private const val DEFAULT_QR_SIZE = 120
     }
 }

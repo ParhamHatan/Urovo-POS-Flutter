@@ -1,3 +1,10 @@
+## 0.1.3
+
+- Improved barcode print reliability by generating/scaling barcode bitmaps in the plugin bridge before append (with vendor fallback).
+- Improved QR print reliability by bypassing the vendor `addQrCode()` defaults and using a QR bitmap path with proper quiet zone/default ZXing behavior (with vendor fallback).
+- Tuned `printSample()` for mixed barcode/QR receipts (`gray`, spacing, QR payload/size defaults) and updated example demo receipt to a scanner-friendly print profile.
+- Added barcode/QR argument validation and print-size guidance in `UrovoPrintJob`.
+
 ## 0.1.2
 
 - Added real POS feature-test run instructions in README (`Run example on real POS`).

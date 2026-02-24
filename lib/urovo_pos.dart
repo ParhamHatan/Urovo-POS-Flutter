@@ -74,7 +74,7 @@ class UrovoPos {
   static Future<void> printSample({
     Uint8List? logoBytes,
     String merchant = 'UROVO POS',
-    String qrData = 'https://urovo.example/receipt/sample',
+    String qrData = 'UROVO_POS_SAMPLE_01',
     String barcodeData = '123456789012',
   }) async {
     final available = await isUrovoSdkAvailable();
@@ -86,7 +86,8 @@ class UrovoPos {
     }
 
     final job = UrovoPrintJob()
-      ..setGray(8)
+      // Mixed 1D/2D receipts usually need a small bump over 0 for reliable QR scans.
+      ..setGray(2)
       ..text(
         merchant,
         style: const UrovoTextStyle(
@@ -124,13 +125,13 @@ class UrovoPos {
         type: UrovoBarcodeType.code128,
         align: UrovoAlign.center,
       )
-      ..feedLine(1)
+      ..feedLine(2)
       ..qr(
         qrData,
-        expectedHeight: 140,
+        expectedHeight: 160,
         align: UrovoAlign.center,
       )
-      ..feedLine(3);
+      ..feedLine(5);
 
     if (logoBytes != null) {
       job

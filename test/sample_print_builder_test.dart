@@ -84,7 +84,7 @@ void main() {
     expect(commandsObject, isA<List<Map<String, Object>>>());
     final commands = commandsObject! as List<Map<String, Object>>;
 
-    expect(job['gray'], 8);
+    expect(job['gray'], 2);
     expect(commands.any((command) => command['type'] == 'imageBytes'), isFalse);
     expect(commands.any((command) => command['type'] == 'barcode'), isTrue);
     expect(commands.any((command) => command['type'] == 'qr'), isTrue);

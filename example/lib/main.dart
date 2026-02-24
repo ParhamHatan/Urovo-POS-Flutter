@@ -114,7 +114,7 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
   Future<void> _printTextOnly() async {
     await _run('Running single text sample...', () async {
       final job = UrovoPrintJob()
-        ..setGray(8)
+        ..setGray(2)
         ..text(
           'UROVO TEXT SAMPLE',
           style: const UrovoTextStyle(
@@ -146,7 +146,7 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
 
       var total = 0;
       final job = UrovoPrintJob()
-        ..setGray(8)
+        ..setGray(0)
         ..text(
           'TABLE DEMO',
           style: const UrovoTextStyle(
@@ -191,9 +191,9 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
   Future<void> _printCustomDemo() async {
     await _run('Running custom receipt print...', () async {
       final job = UrovoPrintJob()
-        ..setGray(8)
+        ..setGray(2)
         ..text(
-          'UROVO POS DEMO',
+          'UROVO POS DEMO RECEIPT',
           style: const UrovoTextStyle(
             align: UrovoAlign.center,
             bold: true,
@@ -212,10 +212,46 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
           style: const UrovoTextStyle(bold: true, font: UrovoFont.large),
         )
         ..feedLine(1)
-        ..barcode('123456789012', align: UrovoAlign.center)
-        ..feedLine(1)
-        ..qr('https://urovo.example/pos/demo', align: UrovoAlign.center)
-        ..feedLine(3);
+        ..text(
+          'BARCODE TEST',
+          style: const UrovoTextStyle(
+            align: UrovoAlign.center,
+            bold: true,
+          ),
+        )
+        ..barcode(
+          '123456789012',
+          align: UrovoAlign.center,
+          type: UrovoBarcodeType.ean13,
+        )
+        ..text(
+          'EAN13: 123456789012',
+          style: const UrovoTextStyle(
+            align: UrovoAlign.center,
+            font: UrovoFont.small,
+          ),
+        )
+        ..feedLine(2)
+        ..text(
+          'QR TEST',
+          style: const UrovoTextStyle(
+            align: UrovoAlign.center,
+            bold: true,
+          ),
+        )
+        ..qr(
+          '222222222222222222222',
+          expectedHeight: 220,
+          align: UrovoAlign.center,
+        )
+        ..text(
+          'QR payload: 222222222222222222222',
+          style: const UrovoTextStyle(
+            align: UrovoAlign.center,
+            font: UrovoFont.small,
+          ),
+        )
+        ..feedLine(5);
 
       await UrovoPos.printerRunJob(job);
       setState(() {

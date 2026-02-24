@@ -73,6 +73,9 @@ class UrovoPrintJob {
   }
 
   /// Appends a barcode command.
+  ///
+  /// Set [width] to `0` to use the SDK-generated natural barcode width without
+  /// additional horizontal scaling (often more scannable on thermal printers).
   UrovoPrintJob barcode(
     String value, {
     int width = 300,
@@ -82,6 +85,12 @@ class UrovoPrintJob {
   }) {
     if (value.isEmpty) {
       throw ArgumentError.value(value, 'value', 'Barcode value cannot be empty.');
+    }
+    if (width < 0) {
+      throw ArgumentError.value(width, 'width', 'Barcode width must be >= 0.');
+    }
+    if (height <= 0) {
+      throw ArgumentError.value(height, 'height', 'Barcode height must be > 0.');
     }
     _commands.add(<String, Object>{
       'type': 'barcode',
@@ -95,6 +104,10 @@ class UrovoPrintJob {
   }
 
   /// Appends a QR code command.
+  ///
+  /// On 58mm (384-dot) thermal printers, longer payloads (for example full URLs)
+  /// require larger sizes to remain scannable. As a starting point:
+  /// `160` for short IDs/text, `220+` for URLs.
   UrovoPrintJob qr(
     String value, {
     int expectedHeight = 120,
@@ -102,6 +115,13 @@ class UrovoPrintJob {
   }) {
     if (value.isEmpty) {
       throw ArgumentError.value(value, 'value', 'QR value cannot be empty.');
+    }
+    if (expectedHeight <= 0) {
+      throw ArgumentError.value(
+        expectedHeight,
+        'expectedHeight',
+        'QR expectedHeight must be > 0.',
+      );
     }
     _commands.add(<String, Object>{
       'type': 'qr',
