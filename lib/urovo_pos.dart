@@ -9,6 +9,8 @@ import 'package:urovo_pos/src/printer/urovo_print_job.dart';
 import 'package:urovo_pos/src/printer/urovo_printer_status.dart';
 import 'package:urovo_pos/src/printer/urovo_printer_status_detail.dart';
 import 'package:urovo_pos/src/printer/urovo_text_style.dart';
+import 'package:urovo_pos/src/scanner/urovo_scan_result.dart';
+import 'package:urovo_pos/src/scanner/urovo_scanner_event.dart';
 import 'package:urovo_pos/urovo_pos_platform_interface.dart';
 
 export 'package:urovo_pos/src/exceptions/urovo_printer_exception.dart';
@@ -17,10 +19,12 @@ export 'package:urovo_pos/src/printer/urovo_print_job.dart';
 export 'package:urovo_pos/src/printer/urovo_printer_status.dart';
 export 'package:urovo_pos/src/printer/urovo_printer_status_detail.dart';
 export 'package:urovo_pos/src/printer/urovo_text_style.dart';
+export 'package:urovo_pos/src/scanner/urovo_scan_result.dart';
+export 'package:urovo_pos/src/scanner/urovo_scanner_event.dart';
 
 /// Entry point for interacting with the Urovo Android POS plugin.
 ///
-/// This API exposes printer lifecycle operations and high-level helpers.
+/// This API exposes printer and scanner operations.
 abstract final class UrovoPos {
   /// Returns whether Urovo SDK classes are available at runtime.
   static Future<bool> isUrovoSdkAvailable() {
@@ -62,6 +66,34 @@ abstract final class UrovoPos {
   /// Closes the active printer session.
   static Future<void> printerClose() {
     return UrovoPosPlatform.instance.printerClose();
+  }
+
+  /// Starts a scan session and waits for scanner callback events.
+  ///
+  /// Listen to [scannerEvents] or [scannerDecodedStream] before calling this.
+  static Future<void> scannerStart({
+    int cameraId = 0,
+    Duration timeout = const Duration(seconds: 10),
+  }) {
+    return UrovoPosPlatform.instance.scannerStart(
+      cameraId: cameraId,
+      timeoutMs: timeout.inMilliseconds,
+    );
+  }
+
+  /// Stops the active scan session.
+  static Future<void> scannerStop() {
+    return UrovoPosPlatform.instance.scannerStop();
+  }
+
+  /// Broadcast stream of scanner lifecycle and decode events.
+  static Stream<UrovoScannerEvent> get scannerEvents {
+    return UrovoPosPlatform.instance.scannerEvents;
+  }
+
+  /// Convenience broadcast stream that only emits decoded payloads.
+  static Stream<UrovoScanResult> get scannerDecodedStream {
+    return UrovoPosPlatform.instance.scannerDecodedStream;
   }
 
   /// Builds and prints a sample receipt job.

@@ -5,6 +5,8 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:urovo_pos/src/printer/urovo_print_job.dart';
 import 'package:urovo_pos/src/printer/urovo_printer_status.dart';
 import 'package:urovo_pos/src/printer/urovo_printer_status_detail.dart';
+import 'package:urovo_pos/src/scanner/urovo_scan_result.dart';
+import 'package:urovo_pos/src/scanner/urovo_scanner_event.dart';
 import 'package:urovo_pos/urovo_pos_method_channel.dart';
 
 /// Platform interface contract for `urovo_pos`.
@@ -63,5 +65,28 @@ abstract class UrovoPosPlatform extends PlatformInterface {
   /// Closes printer session.
   Future<void> printerClose() {
     throw UnimplementedError('printerClose() has not been implemented.');
+  }
+
+  /// Starts a scanner session with the provided timeout (milliseconds).
+  Future<void> scannerStart({
+    required int cameraId,
+    required int timeoutMs,
+  }) {
+    throw UnimplementedError('scannerStart() has not been implemented.');
+  }
+
+  /// Stops an active scanner session.
+  Future<void> scannerStop() {
+    throw UnimplementedError('scannerStop() has not been implemented.');
+  }
+
+  /// Broadcast stream of scanner lifecycle and decode events.
+  Stream<UrovoScannerEvent> get scannerEvents {
+    throw UnimplementedError('scannerEvents has not been implemented.');
+  }
+
+  /// Convenience broadcast stream that only emits decoded payloads.
+  Stream<UrovoScanResult> get scannerDecodedStream {
+    throw UnimplementedError('scannerDecodedStream has not been implemented.');
   }
 }

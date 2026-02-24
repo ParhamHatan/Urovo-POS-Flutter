@@ -63,6 +63,25 @@ class FakeUrovoPosPlatform with MockPlatformInterfaceMixin implements UrovoPosPl
   Future<void> printerClose() async {
     closeCalls += 1;
   }
+
+  @override
+  Future<void> scannerStart({
+    required int cameraId,
+    required int timeoutMs,
+  }) async {}
+
+  @override
+  Future<void> scannerStop() async {}
+
+  @override
+  Stream<UrovoScannerEvent> get scannerEvents {
+    return const Stream<UrovoScannerEvent>.empty();
+  }
+
+  @override
+  Stream<UrovoScanResult> get scannerDecodedStream {
+    return const Stream<UrovoScanResult>.empty();
+  }
 }
 
 void main() {

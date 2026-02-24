@@ -6,7 +6,7 @@
 - Runtime reflection boundary for vendor SDK integration.
 - Feature-first structure so scanner/beeper/pinpad can be added without API churn.
 
-## Current module layout (v0.1.x)
+## Current module layout (v0.2.0)
 
 - Dart public facade:
   - `lib/urovo_pos.dart`
@@ -20,16 +20,23 @@
   - `lib/src/printer/urovo_text_style.dart`
   - `lib/src/printer/urovo_print_job.dart`
   - `lib/src/printer/printer_channel_contract.dart`
+- Scanner feature models/contracts:
+  - `lib/src/scanner/urovo_scan_result.dart`
+  - `lib/src/scanner/urovo_scanner_event.dart`
+  - `lib/src/scanner/scanner_channel_contract.dart`
 - Exceptions:
   - `lib/src/exceptions/urovo_printer_exception.dart`
 - Android plugin router:
   - `android/src/main/kotlin/com/urovo/pos/urovo_pos/UrovoPosPlugin.kt`
 - Android reflection bridge:
   - `android/src/main/kotlin/com/urovo/pos/urovo_pos/printer/UrovoPrinterBridge.kt`
+  - `android/src/main/kotlin/com/urovo/pos/urovo_pos/scanner/UrovoScannerBridge.kt`
 
 ## Method channel contract
 
 Channel: `urovo_pos/methods`
+
+Scanner events channel: `urovo_pos/scanner_events`
 
 Current methods:
 
@@ -41,6 +48,8 @@ Current methods:
 - `printerSetGray`
 - `printerStartPrint`
 - `printerRunJob`
+- `scannerStart`
+- `scannerStop`
 
 Android returns structured payloads for every handled method:
 
@@ -48,11 +57,20 @@ Android returns structured payloads for every handled method:
 - `message`: human-readable message
 - `data`: method payload or error details
 
+Scanner callback events are emitted on the EventChannel as typed maps:
+
+- `decoded`
+- `error`
+- `timeout`
+- `cancel`
+
 ## Reflection boundary
 
 Primary reflection target classes:
 
 - `com.urovo.sdk.print.PrinterProviderImpl`
+- `com.urovo.sdk.scanner.InnerScannerImpl`
+- `com.urovo.sdk.scanner.listener.ScannerListener`
 - `com.google.zxing.BarcodeFormat`
 
 Optional runtime class for vendor status descriptions:
@@ -65,6 +83,7 @@ Bridge invokes methods like:
 - `feedLine`, `paperFeed`, `addBlackLine`
 - `addText`, `addTextLeft_Right`, `addTextLeft_Center_Right`
 - `addBarCode`, `addQrCode`, `addImage`
+- scanner `startScan`, `stopScan`
 
 ## Error model
 
