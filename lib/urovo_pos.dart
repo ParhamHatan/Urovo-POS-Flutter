@@ -21,9 +21,7 @@ export 'package:urovo_pos/src/printer/urovo_text_style.dart';
 /// Entry point for interacting with the Urovo Android POS plugin.
 ///
 /// This API exposes printer lifecycle operations and high-level helpers.
-class UrovoPos {
-  /// Prevents instantiation of this static-only facade.
-  UrovoPos._();
+abstract final class UrovoPos {
 
   /// Returns whether Urovo SDK classes are available at runtime.
   static Future<bool> isUrovoSdkAvailable() {

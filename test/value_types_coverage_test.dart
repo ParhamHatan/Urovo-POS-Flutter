@@ -90,7 +90,10 @@ void main() {
     final job = UrovoPrintJob();
     expect(() => job.text(''), throwsArgumentError);
     expect(() => job.barcode(''), throwsArgumentError);
+    expect(() => job.barcode('123', width: -1), throwsArgumentError);
+    expect(() => job.barcode('123', height: 0), throwsArgumentError);
     expect(() => job.qr(''), throwsArgumentError);
+    expect(() => job.qr('123', expectedHeight: 0), throwsArgumentError);
     expect(() => job.feedLine(-1), throwsArgumentError);
     expect(() => job.paperFeed(-1), throwsArgumentError);
   });
