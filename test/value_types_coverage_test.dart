@@ -73,7 +73,7 @@ void main() {
       font: UrovoFont.large,
       lineHeight: 10,
       newline: false,
-      fontName: 'MONOSPACE',
+      fontAsset: 'assets/fonts/Vazirmatn-Regular.ttf',
     );
 
     expect(style.toMap(), <String, Object>{
@@ -82,7 +82,7 @@ void main() {
       'font': 'large',
       'newline': false,
       'lineHeight': 10,
-      'fontName': 'MONOSPACE',
+      'fontAsset': 'assets/fonts/Vazirmatn-Regular.ttf',
     });
   });
 

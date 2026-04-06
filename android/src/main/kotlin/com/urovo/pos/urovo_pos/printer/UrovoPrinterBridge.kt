@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.os.Bundle
 import android.util.Base64
 import com.urovo.pos.urovo_pos.UrovoPluginException
+import io.flutter.embedding.engine.FlutterInjector
+import java.io.File
 import java.io.Serializable
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
@@ -15,6 +17,7 @@ internal class UrovoPrinterBridge(
 ) : UrovoPrinterApi {
     private var printerProvider: Any? = null
     private var isPrinterInitialized = false
+    private val fontCacheDir: File by lazy { File(appContext.cacheDir, "urovo_fonts") }
 
     override fun isSdkAvailable(): Boolean {
         return hasClass(PRINTER_PROVIDER_CLASS)
@@ -262,11 +265,39 @@ internal class UrovoPrinterBridge(
             if (lineHeight != null) {
                 putInt(KEY_LINE_HEIGHT, lineHeight)
             }
-            val fontName = style?.get("fontName") as? String
-            if (!fontName.isNullOrBlank()) {
-                putString(KEY_FONT_NAME, fontName)
+            val fontAsset = (style?.get("fontAsset") as? String)?.takeIf { it.isNotBlank() }
+            if (!fontAsset.isNullOrBlank()) {
+                putString(KEY_FONT_NAME, resolveFontAssetToPath(fontAsset))
             }
         }
+    }
+
+    private fun resolveFontAssetToPath(assetPath: String): String {
+        val lookupKey = FlutterInjector.instance().flutterLoader().getLookupKeyForAsset(assetPath)
+        val outputFile = File(fontCacheDir, lookupKey.replace('/', '_'))
+        if (outputFile.exists() && outputFile.length() > 0L) {
+            return outputFile.absolutePath
+        }
+
+        if (!fontCacheDir.exists()) {
+            fontCacheDir.mkdirs()
+        }
+
+        runCatching {
+            appContext.assets.open(lookupKey).use { input ->
+                outputFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        }.getOrElse { error ->
+            throw UrovoPluginException(
+                errorCode = "invalid_argument",
+                message = "Unable to resolve font asset: $assetPath.",
+                details = mapOf("error" to (error.message ?: error.javaClass.simpleName)),
+            )
+        }
+
+        return outputFile.absolutePath
     }
 
     private fun ensureSdkAvailable() {

@@ -155,6 +155,40 @@ Future<void> printReceipt() async {
 }
 ```
 
+## Using a custom Persian font
+
+`UrovoTextStyle` supports `fontAsset` for custom printing fonts.
+
+```dart
+final job = UrovoPrintJob()
+  ..text(
+    'سلام',
+    style: const UrovoTextStyle(
+      align: UrovoAlign.right,
+      font: UrovoFont.normal,
+      fontAsset: 'assets/fonts/Vazirmatn-Regular.ttf',
+    ),
+  );
+```
+
+Important notes:
+
+- Flutter `pubspec.yaml` font registration is only for Flutter UI rendering.
+- Printing runs in native Android (Urovo SDK), so the printer can only use
+  fonts the native SDK/device can resolve.
+- The plugin resolves `fontAsset` into a native cached file and passes that
+  path to Urovo SDK automatically.
+
+### Step-by-step tutorial
+
+1. Add the font file to your app (example: `assets/fonts/RaviFaNum-Regular.ttf`).
+2. Register the font file in `pubspec.yaml` under `flutter.assets`.
+3. Build your print job and set `UrovoTextStyle(fontAsset: 'assets/fonts/...')`.
+4. Run printer lifecycle as usual:
+   - `await UrovoPos.printerInit();`
+   - `await UrovoPos.printerRunJob(job);`
+   - `await UrovoPos.printerClose();`
+
 ## Lifecycle contract (manual)
 
 This plugin uses manual lifecycle control. It does not auto-open or auto-close printer sessions.

@@ -45,5 +45,4 @@ app.*.map.json
 /android/app/release
 
 # Local vendor SDK binaries
-/android/app/libs/*.aar
 !/android/app/libs/.gitkeep
