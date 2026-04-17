@@ -1,3 +1,9 @@
+## 0.1.4
+
+- Added custom font asset support for printer text rendering, including example app usage and documentation.
+- Fixed custom-font printing behavior in the Android bridge and added the Persian demo flow in the example app.
+- Improved example Android Gradle dependency caching/configuration and restored ignore protections so local vendor AAR files are not committed.
+
 ## 0.1.3
 
 - Improved barcode print reliability by generating/scaling barcode bitmaps in the plugin bridge before append (with vendor fallback).
