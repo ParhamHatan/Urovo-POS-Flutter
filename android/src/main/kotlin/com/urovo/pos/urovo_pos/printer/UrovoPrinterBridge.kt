@@ -2,11 +2,19 @@ package com.urovo.pos.urovo_pos.printer
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.Bundle
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextDirectionHeuristics
+import android.text.TextPaint
+import android.text.TextUtils
 import android.util.Base64
 import com.urovo.pos.urovo_pos.UrovoPluginException
-import io.flutter.embedding.engine.FlutterInjector
+import io.flutter.FlutterInjector
 import java.io.File
 import java.io.Serializable
 import java.lang.reflect.InvocationTargetException
@@ -132,7 +140,11 @@ internal class UrovoPrinterBridge(
                         message = "text command requires text.",
                     )
                 val styleBundle = textStyleBundle(command["style"] as? Map<*, *>)
-                invokeUnit(provider, "addText", styleBundle, text)
+                if (styleBundle.containsKey(KEY_FONT_NAME)) {
+                    appendTextBitmap(provider, text, styleBundle)
+                } else {
+                    invokeUnit(provider, "addText", styleBundle, text)
+                }
             }
 
             "blackLine" -> invokeUnit(provider, "addBlackLine")
@@ -149,7 +161,30 @@ internal class UrovoPrinterBridge(
                         message = "textLeftRight requires right text.",
                     )
                 val styleBundle = textStyleBundle(command["style"] as? Map<*, *>)
-                invokeUnit(provider, "addTextLeft_Right", styleBundle, left, right)
+                if (styleBundle.containsKey(KEY_FONT_NAME)) {
+                    appendTextColumnsBitmap(
+                        provider = provider,
+                        styleBundle = styleBundle,
+                        columns = listOf(
+                            BitmapTextColumn(
+                                text = left,
+                                start = TWO_COLUMN_LEFT_START,
+                                end = TWO_COLUMN_LEFT_END,
+                                align = Paint.Align.LEFT,
+                                alignValue = ALIGN_LEFT,
+                            ),
+                            BitmapTextColumn(
+                                text = right,
+                                start = TWO_COLUMN_RIGHT_START,
+                                end = TWO_COLUMN_RIGHT_END,
+                                align = Paint.Align.RIGHT,
+                                alignValue = ALIGN_RIGHT,
+                            ),
+                        ),
+                    )
+                } else {
+                    invokeUnit(provider, "addTextLeft_Right", styleBundle, left, right)
+                }
             }
 
             "textLeftCenterRight" -> {
@@ -169,7 +204,37 @@ internal class UrovoPrinterBridge(
                         message = "textLeftCenterRight requires right text.",
                     )
                 val styleBundle = textStyleBundle(command["style"] as? Map<*, *>)
-                invokeUnit(provider, "addTextLeft_Center_Right", styleBundle, left, center, right)
+                if (styleBundle.containsKey(KEY_FONT_NAME)) {
+                    appendTextColumnsBitmap(
+                        provider = provider,
+                        styleBundle = styleBundle,
+                        columns = listOf(
+                            BitmapTextColumn(
+                                text = left,
+                                start = THREE_COLUMN_LEFT_START,
+                                end = THREE_COLUMN_LEFT_END,
+                                align = Paint.Align.LEFT,
+                                alignValue = ALIGN_LEFT,
+                            ),
+                            BitmapTextColumn(
+                                text = center,
+                                start = THREE_COLUMN_CENTER_START,
+                                end = THREE_COLUMN_CENTER_END,
+                                align = Paint.Align.CENTER,
+                                alignValue = ALIGN_CENTER,
+                            ),
+                            BitmapTextColumn(
+                                text = right,
+                                start = THREE_COLUMN_RIGHT_START,
+                                end = THREE_COLUMN_RIGHT_END,
+                                align = Paint.Align.RIGHT,
+                                alignValue = ALIGN_RIGHT,
+                            ),
+                        ),
+                    )
+                } else {
+                    invokeUnit(provider, "addTextLeft_Center_Right", styleBundle, left, center, right)
+                }
             }
 
             "barcode" -> {
@@ -298,6 +363,200 @@ internal class UrovoPrinterBridge(
         }
 
         return outputFile.absolutePath
+    }
+
+    private fun appendTextBitmap(
+        provider: Any,
+        text: String,
+        styleBundle: Bundle,
+    ) {
+        var bitmap: Bitmap? = null
+        try {
+            bitmap = createTextBitmap(text = text, styleBundle = styleBundle)
+            val align = styleBundle.getInt(KEY_ALIGN, ALIGN_LEFT)
+            invokeInt(provider, "appendBitmap", bitmap, align)
+        } finally {
+            bitmap?.let { renderedBitmap ->
+                if (!renderedBitmap.isRecycled) {
+                    renderedBitmap.recycle()
+                }
+            }
+        }
+    }
+
+    private fun appendTextColumnsBitmap(
+        provider: Any,
+        styleBundle: Bundle,
+        columns: List<BitmapTextColumn>,
+    ) {
+        var bitmap: Bitmap? = null
+        try {
+            bitmap = createTextColumnsBitmap(styleBundle = styleBundle, columns = columns)
+            invokeInt(provider, "appendBitmap", bitmap, ALIGN_LEFT)
+        } finally {
+            bitmap?.let { renderedBitmap ->
+                if (!renderedBitmap.isRecycled) {
+                    renderedBitmap.recycle()
+                }
+            }
+        }
+    }
+
+    private fun createTextBitmap(
+        text: String,
+        styleBundle: Bundle,
+    ): Bitmap {
+        val fontSize = resolveTextSize(styleBundle)
+        val paint = createTextPaint(styleBundle, fontSize)
+        val lineSpacing = resolveLineSpacing(styleBundle)
+        val isRtl = containsRtlText(text)
+        val layout = StaticLayout.Builder
+            .obtain(text, 0, text.length, paint, TEXT_BITMAP_WIDTH)
+            .setAlignment(resolveTextLayoutAlignment(styleBundle, isRtl))
+            .setIncludePad(false)
+            .setLineSpacing(lineSpacing.toFloat(), 1f)
+            .setTextDirection(
+                if (isRtl) {
+                    TextDirectionHeuristics.RTL
+                } else {
+                    TextDirectionHeuristics.LTR
+                },
+            )
+            .build()
+        val height = layout.height.coerceAtLeast(1)
+        return Bitmap.createBitmap(TEXT_BITMAP_WIDTH, height, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.WHITE)
+            Canvas(this).apply {
+                layout.draw(this)
+            }
+        }
+    }
+
+    private fun createTextColumnsBitmap(
+        styleBundle: Bundle,
+        columns: List<BitmapTextColumn>,
+    ): Bitmap {
+        val fontSize = resolveTextSize(styleBundle)
+        val paint = createTextPaint(styleBundle, fontSize)
+        val lineSpacing = resolveLineSpacing(styleBundle)
+        val preparedColumns = columns.map { column ->
+            val width = (column.end - column.start).coerceAtLeast(1)
+            val isRtl = containsRtlText(column.text)
+            val layout = StaticLayout.Builder
+                .obtain(column.text, 0, column.text.length, paint, width)
+                .setAlignment(resolveTextLayoutAlignment(column.alignValue, isRtl))
+                .setIncludePad(false)
+                .setLineSpacing(lineSpacing.toFloat(), 1f)
+                .setMaxLines(1)
+                .setEllipsize(TextUtils.TruncateAt.END)
+                .setTextDirection(
+                    if (isRtl) {
+                        TextDirectionHeuristics.RTL
+                    } else {
+                        TextDirectionHeuristics.LTR
+                    },
+                )
+                .build()
+            PreparedBitmapTextColumn(column = column, layout = layout)
+        }
+        val contentHeight = preparedColumns.maxOfOrNull { it.layout.height } ?: 1
+        val height = (contentHeight + lineSpacing + (TEXT_BITMAP_VERTICAL_PADDING * 2)).coerceAtLeast(1)
+
+        return Bitmap.createBitmap(TEXT_BITMAP_WIDTH, height, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.WHITE)
+            val canvas = Canvas(this)
+            preparedColumns.forEach { preparedColumn ->
+                canvas.save()
+                canvas.translate(
+                    preparedColumn.column.start.toFloat(),
+                    TEXT_BITMAP_VERTICAL_PADDING.toFloat(),
+                )
+                preparedColumn.layout.draw(canvas)
+                canvas.restore()
+            }
+        }
+    }
+
+    private fun createTextPaint(
+        styleBundle: Bundle,
+        fontSize: Int,
+    ): TextPaint {
+        val fontPath = styleBundle.getString(KEY_FONT_NAME).orEmpty()
+        val isBold = styleBundle.getBoolean(KEY_FONT_BOLD, false)
+
+        return TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.BLACK
+            textSize = fontSize.toFloat()
+            isFakeBoldText = isBold
+            typeface = resolveTypeface(fontPath, isBold)
+        }
+    }
+
+    private fun resolveTextSize(styleBundle: Bundle): Int {
+        val overrideSize = styleBundle.getInt(KEY_FONT_SIZE, 0)
+        if (overrideSize > 0) {
+            return overrideSize
+        }
+
+        return when (styleBundle.getInt(KEY_FONT, FONT_NORMAL)) {
+            FONT_SMALL -> 16
+            FONT_LARGE -> 32
+            else -> 24
+        }
+    }
+
+    private fun resolveTypeface(
+        fontPath: String,
+        isBold: Boolean,
+    ): Typeface {
+        if (fontPath.isBlank()) {
+            return if (isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        }
+
+        return runCatching {
+            Typeface.createFromFile(fontPath)
+        }.getOrElse {
+            if (isBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        }
+    }
+
+    private fun resolveLineSpacing(styleBundle: Bundle): Int {
+        return styleBundle.getInt(KEY_LINE_HEIGHT, DEFAULT_TEXT_LINE_HEIGHT)
+    }
+
+    private fun resolveTextLayoutAlignment(
+        requestedAlign: Int,
+        isRtl: Boolean,
+    ): Layout.Alignment {
+        return when (requestedAlign) {
+            ALIGN_CENTER -> Layout.Alignment.ALIGN_CENTER
+            ALIGN_RIGHT -> if (isRtl) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_OPPOSITE
+            else -> if (isRtl) Layout.Alignment.ALIGN_OPPOSITE else Layout.Alignment.ALIGN_NORMAL
+        }
+    }
+
+    private fun resolveTextLayoutAlignment(
+        styleBundle: Bundle,
+        isRtl: Boolean,
+    ): Layout.Alignment {
+        return resolveTextLayoutAlignment(
+            requestedAlign = styleBundle.getInt(KEY_ALIGN, ALIGN_LEFT),
+            isRtl = isRtl,
+        )
+    }
+
+    private fun containsRtlText(text: String): Boolean {
+        return text.any { character ->
+            when (Character.getDirectionality(character)) {
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT.toByte(),
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC.toByte(),
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING.toByte(),
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE.toByte(),
+                -> true
+
+                else -> false
+            }
+        }
     }
 
     private fun ensureSdkAvailable() {
@@ -759,6 +1018,19 @@ internal class UrovoPrinterBridge(
     }
 
     private companion object {
+        private data class BitmapTextColumn(
+            val text: String,
+            val start: Int,
+            val end: Int,
+            val align: Paint.Align,
+            val alignValue: Int,
+        )
+
+        private data class PreparedBitmapTextColumn(
+            val column: BitmapTextColumn,
+            val layout: StaticLayout,
+        )
+
         private const val PRINTER_PROVIDER_CLASS = "com.urovo.sdk.print.PrinterProviderImpl"
         private const val PRINT_STATUS_CLASS = "com.urovo.sdk.print.PrintStatus"
         private const val ENCODING_HANDLER_CLASS = "com.urovo.sdk.print.EncodingHandler"
@@ -767,6 +1039,7 @@ internal class UrovoPrinterBridge(
 
         private const val KEY_ALIGN = "align"
         private const val KEY_FONT = "font"
+        private const val KEY_FONT_SIZE = "fontSize"
         private const val KEY_FONT_BOLD = "fontBold"
         private const val KEY_NEWLINE = "newline"
         private const val KEY_LINE_HEIGHT = "lineHeight"
@@ -793,5 +1066,20 @@ internal class UrovoPrinterBridge(
         private const val STATUS_MOTOR_ERROR = 251
 
         private const val DEFAULT_QR_SIZE = 120
+        private const val DEFAULT_TEXT_LINE_HEIGHT = 5
+        private const val TEXT_BITMAP_WIDTH = 384
+        private const val TEXT_BITMAP_VERTICAL_PADDING = 4
+
+        private const val TWO_COLUMN_LEFT_START = 6
+        private const val TWO_COLUMN_LEFT_END = 152
+        private const val TWO_COLUMN_RIGHT_START = 164
+        private const val TWO_COLUMN_RIGHT_END = 378
+
+        private const val THREE_COLUMN_LEFT_START = 6
+        private const val THREE_COLUMN_LEFT_END = 134
+        private const val THREE_COLUMN_CENTER_START = 142
+        private const val THREE_COLUMN_CENTER_END = 198
+        private const val THREE_COLUMN_RIGHT_START = 206
+        private const val THREE_COLUMN_RIGHT_END = 378
     }
 }

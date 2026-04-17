@@ -267,11 +267,18 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
   }
 
   Future<void> _printCustomDemoPersian() async {
-    await _run('Running Persian print demo...', () async {
+    await _run('Running Persian table print demo...', () async {
+      const items = <_TableItem>[
+        _TableItem(name: 'همبرگر', qty: 2, unitPrice: 180000),
+        _TableItem(name: 'سیب زمینی', qty: 1, unitPrice: 95000),
+        _TableItem(name: 'نوشابه', qty: 3, unitPrice: 45000),
+      ];
+
+      var total = 0;
       final job = UrovoPrintJob()
-        ..setGray(3)
+        ..setGray(0)
         ..text(
-          'نمونه چاپ فارسی',
+          'نمونه جدول فارسی',
           style: const UrovoTextStyle(
             align: UrovoAlign.center,
             bold: true,
@@ -280,26 +287,35 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
           ),
         )
         ..feedLine(1)
-        ..text(
-          'فروشگاه آزمایشی',
+        ..blackLine()
+        ..textLeftCenterRight(
+          'مبلغ',
+          'تعداد',
+          'کالا',
           style: const UrovoTextStyle(
-            align: UrovoAlign.right,
-            font: UrovoFont.normal,
+            bold: true,
             fontAsset: _persianFontAsset,
           ),
         )
-        ..text(
-          'تعداد: ۲',
+        ..blackLine();
+
+      for (final item in items) {
+        final lineTotal = item.qty * item.unitPrice;
+        total += lineTotal;
+        job.textLeftCenterRight(
+          _formatAmount(lineTotal),
+          '${item.qty}',
+          item.name,
+          style: const UrovoTextStyle(fontAsset: _persianFontAsset),
+        );
+      }
+
+      job
+        ..blackLine()
+        ..textLeftRight(
+          _formatAmount(total),
+          'جمع کل',
           style: const UrovoTextStyle(
-            align: UrovoAlign.right,
-            font: UrovoFont.normal,
-            fontAsset: _persianFontAsset,
-          ),
-        )
-        ..text(
-          'مبلغ کل: ۳۰۰٬۰۰۰',
-          style: const UrovoTextStyle(
-            align: UrovoAlign.right,
             bold: true,
             font: UrovoFont.large,
             fontAsset: _persianFontAsset,
@@ -309,13 +325,25 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
 
       await UrovoPos.printerRunJob(job);
       setState(() {
-        _status = 'Persian print done';
+        _status = 'Persian table print done';
         _logs.insert(
           0,
           'persianPrint: OK @ ${DateTime.now().toIso8601String()}',
         );
       });
     });
+  }
+
+  String _formatAmount(int value) {
+    final digits = value.toString();
+    final buffer = StringBuffer();
+    for (var index = 0; index < digits.length; index++) {
+      if (index > 0 && (digits.length - index) % 3 == 0) {
+        buffer.write('٬');
+      }
+      buffer.write(digits[index]);
+    }
+    return buffer.toString();
   }
 
   Future<void> _closePrinter() async {
@@ -376,7 +404,7 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
                   ),
                   ElevatedButton(
                     onPressed: _isBusy ? null : _printCustomDemoPersian,
-                    child: const Text('Print Persian Demo'),
+                    child: const Text('Print Persian Table'),
                   ),
                   ElevatedButton(
                     onPressed: _isBusy ? null : _closePrinter,
