@@ -17,8 +17,11 @@ class UrovoTextStyle {
   /// Whether to append a new line after text.
   final bool newline;
 
-  /// Optional named font value used by vendor SDK when supported.
-  final String? fontName;
+  /// Optional Flutter asset path for a TTF/OTF font.
+  ///
+  /// When provided, native plugin code resolves the asset and provides a
+  /// native file path to the Urovo SDK.
+  final String? fontAsset;
 
   /// Creates a text style payload.
   const UrovoTextStyle({
@@ -27,7 +30,7 @@ class UrovoTextStyle {
     this.font = UrovoFont.normal,
     this.lineHeight,
     this.newline = true,
-    this.fontName,
+    this.fontAsset,
   });
 
   /// Serializes this style into method-channel payload format.
@@ -43,8 +46,8 @@ class UrovoTextStyle {
       map['lineHeight'] = lineHeight!;
     }
 
-    if (fontName != null && fontName!.isNotEmpty) {
-      map['fontName'] = fontName!;
+    if (fontAsset != null && fontAsset!.isNotEmpty) {
+      map['fontAsset'] = fontAsset!;
     }
 
     return map;

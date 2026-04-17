@@ -25,6 +25,8 @@ class UrovoExampleApp extends StatefulWidget {
 }
 
 class _UrovoExampleAppState extends State<UrovoExampleApp> {
+  static const String _persianFontAsset = 'assets/fonts/RaviFaNum-Regular.ttf';
+
   String _status = 'Ready';
   final List<String> _logs = <String>[];
   bool _isBusy = false;
@@ -264,6 +266,58 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
     });
   }
 
+  Future<void> _printCustomDemoPersian() async {
+    await _run('Running Persian print demo...', () async {
+      final job = UrovoPrintJob()
+        ..setGray(3)
+        ..text(
+          'نمونه چاپ فارسی',
+          style: const UrovoTextStyle(
+            align: UrovoAlign.center,
+            bold: true,
+            font: UrovoFont.large,
+            fontAsset: _persianFontAsset,
+          ),
+        )
+        ..feedLine(1)
+        ..text(
+          'فروشگاه آزمایشی',
+          style: const UrovoTextStyle(
+            align: UrovoAlign.right,
+            font: UrovoFont.normal,
+            fontAsset: _persianFontAsset,
+          ),
+        )
+        ..text(
+          'تعداد: ۲',
+          style: const UrovoTextStyle(
+            align: UrovoAlign.right,
+            font: UrovoFont.normal,
+            fontAsset: _persianFontAsset,
+          ),
+        )
+        ..text(
+          'مبلغ کل: ۳۰۰٬۰۰۰',
+          style: const UrovoTextStyle(
+            align: UrovoAlign.right,
+            bold: true,
+            font: UrovoFont.large,
+            fontAsset: _persianFontAsset,
+          ),
+        )
+        ..feedLine(4);
+
+      await UrovoPos.printerRunJob(job);
+      setState(() {
+        _status = 'Persian print done';
+        _logs.insert(
+          0,
+          'persianPrint: OK @ ${DateTime.now().toIso8601String()}',
+        );
+      });
+    });
+  }
+
   Future<void> _closePrinter() async {
     await _run('Closing printer...', () async {
       await UrovoPos.printerClose();
@@ -319,6 +373,10 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
                   ElevatedButton(
                     onPressed: _isBusy ? null : _printCustomDemo,
                     child: const Text('Print Demo Receipt'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isBusy ? null : _printCustomDemoPersian,
+                    child: const Text('Print Persian Demo'),
                   ),
                   ElevatedButton(
                     onPressed: _isBusy ? null : _closePrinter,
