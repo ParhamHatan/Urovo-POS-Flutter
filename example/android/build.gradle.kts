@@ -1,5 +1,8 @@
+import java.util.concurrent.TimeUnit
+
 allprojects {
     repositories {
+        mavenLocal()
         google()
         mavenCentral()
     }
@@ -14,6 +17,13 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+
+    configurations.configureEach {
+        resolutionStrategy {
+            cacheDynamicVersionsFor(7, TimeUnit.DAYS)
+            cacheChangingModulesFor(7, TimeUnit.DAYS)
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")
