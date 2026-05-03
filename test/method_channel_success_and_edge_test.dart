@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:urovo_pos/src/printer/printer_channel_contract.dart';
@@ -11,7 +13,7 @@ void main() {
   const channel = MethodChannel('urovo_pos/methods');
   const scannerEventChannel = EventChannel(ScannerChannelContract.eventChannelName);
   final platform = MethodChannelUrovoPos();
-  final codec = const StandardMethodCodec();
+  const codec = StandardMethodCodec();
 
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
@@ -103,29 +105,32 @@ void main() {
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     var listenCalls = 0;
 
-    messenger.setMockMessageHandler(scannerEventChannel.name, (ByteData? message) async {
+    messenger.setMockMessageHandler(scannerEventChannel.name, (message) async {
       final call = codec.decodeMethodCall(message);
       if (call.method == 'listen') {
         listenCalls += 1;
-        Future<void>.microtask(() {
-          messenger.handlePlatformMessage(
-            scannerEventChannel.name,
-            codec.encodeSuccessEnvelope(<String, Object?>{
-              'type': 'timeout',
-              'timestampMs': 1710000000000,
-            }),
-            (_) {},
-          );
-          messenger.handlePlatformMessage(
-            scannerEventChannel.name,
-            codec.encodeSuccessEnvelope(<String, Object?>{
-              'type': 'decoded',
-              'data': 'SCANNED123',
-              'timestampMs': 1710000000100,
-            }),
-            (_) {},
-          );
-        });
+        unawaited(
+          Future<void>.microtask(() {
+            messenger
+              ..handlePlatformMessage(
+                scannerEventChannel.name,
+                codec.encodeSuccessEnvelope(<String, Object?>{
+                  'type': 'timeout',
+                  'timestampMs': 1710000000000,
+                }),
+                (_) {},
+              )
+              ..handlePlatformMessage(
+                scannerEventChannel.name,
+                codec.encodeSuccessEnvelope(<String, Object?>{
+                  'type': 'decoded',
+                  'data': 'SCANNED123',
+                  'timestampMs': 1710000000100,
+                }),
+                (_) {},
+              );
+          }),
+        );
         return codec.encodeSuccessEnvelope(null);
       }
       if (call.method == 'cancel') {
@@ -154,16 +159,18 @@ void main() {
   test('scannerEvents throws typed error when event payload is not a map', () async {
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
-    messenger.setMockMessageHandler(scannerEventChannel.name, (ByteData? message) async {
+    messenger.setMockMessageHandler(scannerEventChannel.name, (message) async {
       final call = codec.decodeMethodCall(message);
       if (call.method == 'listen') {
-        Future<void>.microtask(() {
-          messenger.handlePlatformMessage(
-            scannerEventChannel.name,
-            codec.encodeSuccessEnvelope('invalid'),
-            (_) {},
-          );
-        });
+        unawaited(
+          Future<void>.microtask(() {
+            messenger.handlePlatformMessage(
+              scannerEventChannel.name,
+              codec.encodeSuccessEnvelope('invalid'),
+              (_) {},
+            );
+          }),
+        );
         return codec.encodeSuccessEnvelope(null);
       }
       if (call.method == 'cancel') {
