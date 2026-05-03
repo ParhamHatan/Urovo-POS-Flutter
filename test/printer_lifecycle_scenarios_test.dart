@@ -66,6 +66,25 @@ class LifecycleFakeUrovoPosPlatform with MockPlatformInterfaceMixin implements U
     initialized = false;
   }
 
+  @override
+  Future<void> scannerStart({
+    required int cameraId,
+    required int timeoutMs,
+  }) async {}
+
+  @override
+  Future<void> scannerStop() async {}
+
+  @override
+  Stream<UrovoScannerEvent> get scannerEvents {
+    return const Stream<UrovoScannerEvent>.empty();
+  }
+
+  @override
+  Stream<UrovoScanResult> get scannerDecodedStream {
+    return const Stream<UrovoScanResult>.empty();
+  }
+
   void _ensureSdk() {
     if (!sdkAvailable) {
       throw const UrovoPrinterException(

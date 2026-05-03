@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:urovo_pos/urovo_pos.dart';
 
@@ -30,11 +32,19 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
   String _status = 'Ready';
   final List<String> _logs = <String>[];
   bool _isBusy = false;
+  StreamSubscription<UrovoScannerEvent>? _scannerSubscription;
 
   @override
   void initState() {
     super.initState();
+    _scannerSubscription = UrovoPos.scannerEvents.listen(_onScannerEvent);
     _checkSdk();
+  }
+
+  @override
+  void dispose() {
+    _scannerSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _run(String label, Future<void> Function() action) async {
@@ -216,10 +226,7 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
         ..feedLine(1)
         ..text(
           'BARCODE TEST',
-          style: const UrovoTextStyle(
-            align: UrovoAlign.center,
-            bold: true,
-          ),
+          style: const UrovoTextStyle(align: UrovoAlign.center, bold: true),
         )
         ..barcode(
           '123456789012',
@@ -236,10 +243,7 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
         ..feedLine(2)
         ..text(
           'QR TEST',
-          style: const UrovoTextStyle(
-            align: UrovoAlign.center,
-            bold: true,
-          ),
+          style: const UrovoTextStyle(align: UrovoAlign.center, bold: true),
         )
         ..qr(
           '222222222222222222222',
@@ -356,6 +360,83 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
     });
   }
 
+  Future<void> _scannerStart() async {
+    await _run('Starting scanner...', () async {
+      await UrovoPos.scannerStart(
+        cameraId: 1,
+        timeout: const Duration(seconds: 30),
+      );
+      setState(() {
+        _status = 'Scanner started';
+        _logs.insert(0, 'scannerStart: OK (cameraId=1, timeout=30s)');
+      });
+    });
+  }
+
+  Future<void> _scannerStop() async {
+    await _run('Stopping scanner...', () async {
+      await UrovoPos.scannerStop();
+      setState(() {
+        _status = 'Scanner stopped';
+        _logs.insert(0, 'scannerStop: OK');
+      });
+    });
+  }
+
+  void _onScannerEvent(UrovoScannerEvent event) {
+    if (!mounted) {
+      return;
+    }
+
+    var shouldStopAfterDecode = false;
+    setState(() {
+      switch (event.type) {
+        case UrovoScannerEventType.decoded:
+          final data = event.result?.data ?? '';
+          _status = 'Scanned: $data';
+          _logs.insert(0, 'scan(decoded): $data');
+          shouldStopAfterDecode = true;
+          break;
+        case UrovoScannerEventType.error:
+          _status = 'Scanner error';
+          _logs.insert(
+            0,
+            'scan(error): code=${event.errorCode} message=${event.message}',
+          );
+          break;
+        case UrovoScannerEventType.timeout:
+          _status = 'Scan timeout';
+          _logs.insert(0, 'scan(timeout)');
+          break;
+        case UrovoScannerEventType.canceled:
+          _status = 'Scan canceled';
+          _logs.insert(0, 'scan(cancel)');
+          break;
+        case UrovoScannerEventType.unknown:
+          _status = 'Unknown scan event';
+          _logs.insert(0, 'scan(unknown)');
+          break;
+      }
+    });
+
+    if (!shouldStopAfterDecode) {
+      return;
+    }
+
+    unawaited(
+      Future<void>.microtask(() => UrovoPos.scannerStop()).catchError((
+        Object error,
+      ) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _logs.insert(0, '[WARN] scannerStop after decode failed: $error');
+        });
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -409,6 +490,14 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
                   ElevatedButton(
                     onPressed: _isBusy ? null : _closePrinter,
                     child: const Text('Close Printer'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isBusy ? null : _scannerStart,
+                    child: const Text('Start Scan'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isBusy ? null : _scannerStop,
+                    child: const Text('Stop Scan'),
                   ),
                 ],
               ),

@@ -1,6 +1,8 @@
 package com.urovo.pos.urovo_pos
 
+import android.content.Context
 import com.urovo.pos.urovo_pos.printer.UrovoPrinterApi
+import com.urovo.pos.urovo_pos.scanner.UrovoScannerApi
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlin.test.Test
@@ -229,6 +231,72 @@ internal class UrovoPosPluginTest {
     }
 
     @Test
+    fun onMethodCall_scannerStart_withDefaults_callsScannerBridge() {
+        val printerBridge = FakePrinterBridge()
+        val scannerBridge = FakeScannerBridge()
+        val plugin = UrovoPosPlugin(printerBridge, scannerBridge)
+        val result = CapturingResult()
+
+        plugin.onMethodCall(MethodCall("scannerStart", null), result)
+
+        assertEquals(1, scannerBridge.startCalls)
+        assertEquals(0, scannerBridge.lastCameraId)
+        assertEquals(10_000L, scannerBridge.lastTimeoutMs)
+        assertOkResponse(result, null)
+    }
+
+    @Test
+    fun onMethodCall_scannerStart_withArgs_callsScannerBridge() {
+        val printerBridge = FakePrinterBridge()
+        val scannerBridge = FakeScannerBridge()
+        val plugin = UrovoPosPlugin(printerBridge, scannerBridge)
+        val result = CapturingResult()
+
+        plugin.onMethodCall(
+            MethodCall(
+                "scannerStart",
+                mapOf("cameraId" to 1, "timeoutMs" to 5500),
+            ),
+            result,
+        )
+
+        assertEquals(1, scannerBridge.startCalls)
+        assertEquals(1, scannerBridge.lastCameraId)
+        assertEquals(5500L, scannerBridge.lastTimeoutMs)
+        assertOkResponse(result, null)
+    }
+
+    @Test
+    fun onMethodCall_scannerStart_withInvalidArgs_returnsInvalidArgument() {
+        val printerBridge = FakePrinterBridge()
+        val scannerBridge = FakeScannerBridge()
+        val plugin = UrovoPosPlugin(printerBridge, scannerBridge)
+        val result = CapturingResult()
+
+        plugin.onMethodCall(MethodCall("scannerStart", mapOf("timeoutMs" to "x")), result)
+
+        assertErrorResponse(
+            result = result,
+            code = "invalid_argument",
+            message = "timeoutMs must be a number.",
+            data = null,
+        )
+    }
+
+    @Test
+    fun onMethodCall_scannerStop_callsScannerBridgeAndReturnsOk() {
+        val printerBridge = FakePrinterBridge()
+        val scannerBridge = FakeScannerBridge()
+        val plugin = UrovoPosPlugin(printerBridge, scannerBridge)
+        val result = CapturingResult()
+
+        plugin.onMethodCall(MethodCall("scannerStop", null), result)
+
+        assertEquals(1, scannerBridge.stopCalls)
+        assertOkResponse(result, null)
+    }
+
+    @Test
     fun onMethodCall_whenBridgeThrowsPluginException_returnsErrorResponse() {
         val details = mapOf(
             "statusDetail" to mapOf(
@@ -376,6 +444,31 @@ private class FakePrinterBridge : UrovoPrinterApi {
         runJobError?.let { throw it }
         return runJobResultValue
     }
+}
+
+private class FakeScannerBridge : UrovoScannerApi {
+    var startCalls: Int = 0
+    var stopCalls: Int = 0
+    var lastCameraId: Int? = null
+    var lastTimeoutMs: Long? = null
+    var startError: Throwable? = null
+    var stopError: Throwable? = null
+
+    override fun scannerStart(cameraId: Int, timeoutMs: Long) {
+        startCalls += 1
+        lastCameraId = cameraId
+        lastTimeoutMs = timeoutMs
+        startError?.let { throw it }
+    }
+
+    override fun scannerStop() {
+        stopCalls += 1
+        stopError?.let { throw it }
+    }
+
+    override fun setEventCallback(callback: ((Map<String, Any?>) -> Unit)?) {}
+
+    override fun setForegroundContext(context: Context?) {}
 }
 
 private class CapturingResult : MethodChannel.Result {
