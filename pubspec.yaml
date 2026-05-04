@@ -1,6 +1,6 @@
 name: urovo_pos
-description: Flutter plugin for Urovo POS (Android) with printer and scanner APIs, designed for modular feature expansion.
-version: 0.2.0
+description: Flutter plugin for Urovo POS (Android) with printer, scanner, beeper, and device status APIs.
+version: 0.3.0
 
 repository: https://github.com/ParhamHatan/Urovo-POS-Flutter
 issue_tracker: https://github.com/ParhamHatan/Urovo-POS-Flutter/issues

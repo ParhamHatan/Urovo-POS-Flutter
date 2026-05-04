@@ -4,7 +4,7 @@
 
 ```yaml
 dependencies:
-  urovo_pos: ^0.2.0
+  urovo_pos: ^0.3.0
 ```
 
 For local workspace integration:
@@ -44,6 +44,9 @@ final available = await UrovoPos.isUrovoSdkAvailable();
 if (!available) {
   // show setup error
 }
+
+final deviceStatus = await UrovoPos.deviceGetStatus();
+// Optional: display deviceStatus.model, serialNumber, tidSerialNumber, docked.
 
 await UrovoPos.printerInit();
 try {
@@ -123,4 +126,19 @@ await UrovoPos.scannerStart(timeout: const Duration(seconds: 10));
 // later...
 await UrovoPos.scannerStop();
 await sub.cancel();
+```
+
+## 7. Beeper flow (v0.3.0)
+
+```dart
+await UrovoPos.beeperBeep(
+  pattern: UrovoBeeperPattern.success,
+  repeat: 2,
+  duration: const Duration(milliseconds: 120),
+  interval: const Duration(milliseconds: 80),
+  volume: 1,
+);
+
+// Optional, if a longer/repeating pattern should be interrupted:
+await UrovoPos.beeperStop();
 ```

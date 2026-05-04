@@ -5,6 +5,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:urovo_pos/src/beeper/beeper_channel_contract.dart';
+import 'package:urovo_pos/src/beeper/urovo_beeper_pattern.dart';
+import 'package:urovo_pos/src/device/device_channel_contract.dart';
+import 'package:urovo_pos/src/device/urovo_device_status.dart';
 import 'package:urovo_pos/src/exceptions/urovo_printer_exception.dart';
 import 'package:urovo_pos/src/printer/printer_channel_contract.dart';
 import 'package:urovo_pos/src/printer/urovo_print_job.dart';
@@ -38,6 +42,13 @@ class MethodChannelUrovoPos extends UrovoPosPlatform {
   Future<bool> isUrovoSdkAvailable() async {
     final data = await _invokeData(PrinterChannelContract.isUrovoSdkAvailable);
     return data is bool && data;
+  }
+
+  @override
+  Future<UrovoDeviceStatus> deviceGetStatus() async {
+    final data = await _invokeData(DeviceChannelContract.deviceGetStatus);
+    final map = _asMap(data, method: DeviceChannelContract.deviceGetStatus);
+    return UrovoDeviceStatus.fromMap(map);
   }
 
   @override
@@ -106,6 +117,28 @@ class MethodChannelUrovoPos extends UrovoPosPlatform {
     return scannerEvents
         .where((event) => event.type == UrovoScannerEventType.decoded && event.result != null)
         .map((event) => event.result!);
+  }
+
+  @override
+  Future<void> beeperBeep({
+    required UrovoBeeperPattern pattern,
+    required int repeat,
+    required int durationMs,
+    required int intervalMs,
+    required double volume,
+  }) async {
+    await _invokeData(BeeperChannelContract.beeperBeep, <String, Object>{
+      'pattern': pattern.wireValue,
+      'repeat': repeat,
+      'durationMs': durationMs,
+      'intervalMs': intervalMs,
+      'volume': volume,
+    });
+  }
+
+  @override
+  Future<void> beeperStop() async {
+    await _invokeData(BeeperChannelContract.beeperStop);
   }
 
   Future<dynamic> _invokeData(

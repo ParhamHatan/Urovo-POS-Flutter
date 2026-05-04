@@ -1,6 +1,8 @@
 package com.urovo.pos.urovo_pos
 
 import android.content.Context
+import com.urovo.pos.urovo_pos.beeper.UrovoBeeperApi
+import com.urovo.pos.urovo_pos.device.UrovoDeviceApi
 import com.urovo.pos.urovo_pos.printer.UrovoPrinterApi
 import com.urovo.pos.urovo_pos.scanner.UrovoScannerApi
 import io.flutter.plugin.common.MethodCall
@@ -26,13 +28,48 @@ internal class UrovoPosPluginTest {
 
     @Test
     fun onMethodCall_isSdkAvailable_returnsOkResponse() {
-        val bridge = FakePrinterBridge().apply { sdkAvailable = true }
-        val plugin = UrovoPosPlugin(bridge)
+        val deviceBridge = FakeDeviceBridge().apply { sdkAvailable = true }
+        val plugin = UrovoPosPlugin(
+            FakePrinterBridge(),
+            FakeScannerBridge(),
+            FakeBeeperBridge(),
+            deviceBridge,
+        )
         val result = CapturingResult()
 
         plugin.onMethodCall(MethodCall("isUrovoSdkAvailable", null), result)
 
         assertOkResponse(result, true)
+    }
+
+    @Test
+    fun onMethodCall_deviceGetStatus_returnsDeviceStatusMap() {
+        val deviceStatus = mapOf<String, Any?>(
+            "deviceManagerAvailable" to true,
+            "manufacturer" to "Urovo",
+            "brand" to "Urovo",
+            "model" to "i9000S",
+            "device" to "i9000s",
+            "androidVersion" to "11",
+            "androidSdkInt" to 30,
+            "serialNumber" to "SN123",
+            "tidSerialNumber" to "TID123",
+            "docked" to false,
+            "timestampMs" to 1710000000000L,
+        )
+        val deviceBridge = FakeDeviceBridge().apply { statusResult = deviceStatus }
+        val plugin = UrovoPosPlugin(
+            FakePrinterBridge(),
+            FakeScannerBridge(),
+            FakeBeeperBridge(),
+            deviceBridge,
+        )
+        val result = CapturingResult()
+
+        plugin.onMethodCall(MethodCall("deviceGetStatus", null), result)
+
+        assertEquals(1, deviceBridge.statusCalls)
+        assertOkResponse(result, deviceStatus)
     }
 
     @Test
@@ -297,6 +334,99 @@ internal class UrovoPosPluginTest {
     }
 
     @Test
+    fun onMethodCall_beeperBeep_withDefaults_callsBeeperBridge() {
+        val beeperBridge = FakeBeeperBridge()
+        val plugin = UrovoPosPlugin(
+            FakePrinterBridge(),
+            FakeScannerBridge(),
+            beeperBridge,
+            FakeDeviceBridge(),
+        )
+        val result = CapturingResult()
+
+        plugin.onMethodCall(MethodCall("beeperBeep", null), result)
+
+        assertEquals(1, beeperBridge.beepCalls)
+        assertEquals("short", beeperBridge.lastPattern)
+        assertEquals(1, beeperBridge.lastRepeat)
+        assertEquals(120, beeperBridge.lastDurationMs)
+        assertEquals(80, beeperBridge.lastIntervalMs)
+        assertEquals(1.0, beeperBridge.lastVolume)
+        assertOkResponse(result, null)
+    }
+
+    @Test
+    fun onMethodCall_beeperBeep_withArgs_callsBeeperBridge() {
+        val beeperBridge = FakeBeeperBridge()
+        val plugin = UrovoPosPlugin(
+            FakePrinterBridge(),
+            FakeScannerBridge(),
+            beeperBridge,
+            FakeDeviceBridge(),
+        )
+        val result = CapturingResult()
+
+        plugin.onMethodCall(
+            MethodCall(
+                "beeperBeep",
+                mapOf(
+                    "pattern" to "warning",
+                    "repeat" to 2,
+                    "durationMs" to 200,
+                    "intervalMs" to 50,
+                    "volume" to 0.5,
+                ),
+            ),
+            result,
+        )
+
+        assertEquals(1, beeperBridge.beepCalls)
+        assertEquals("warning", beeperBridge.lastPattern)
+        assertEquals(2, beeperBridge.lastRepeat)
+        assertEquals(200, beeperBridge.lastDurationMs)
+        assertEquals(50, beeperBridge.lastIntervalMs)
+        assertEquals(0.5, beeperBridge.lastVolume)
+        assertOkResponse(result, null)
+    }
+
+    @Test
+    fun onMethodCall_beeperBeep_withInvalidArgs_returnsInvalidArgument() {
+        val plugin = UrovoPosPlugin(
+            FakePrinterBridge(),
+            FakeScannerBridge(),
+            FakeBeeperBridge(),
+            FakeDeviceBridge(),
+        )
+        val result = CapturingResult()
+
+        plugin.onMethodCall(MethodCall("beeperBeep", mapOf("volume" to "loud")), result)
+
+        assertErrorResponse(
+            result = result,
+            code = "invalid_argument",
+            message = "volume must be a number.",
+            data = null,
+        )
+    }
+
+    @Test
+    fun onMethodCall_beeperStop_callsBeeperBridgeAndReturnsOk() {
+        val beeperBridge = FakeBeeperBridge()
+        val plugin = UrovoPosPlugin(
+            FakePrinterBridge(),
+            FakeScannerBridge(),
+            beeperBridge,
+            FakeDeviceBridge(),
+        )
+        val result = CapturingResult()
+
+        plugin.onMethodCall(MethodCall("beeperStop", null), result)
+
+        assertEquals(1, beeperBridge.stopCalls)
+        assertOkResponse(result, null)
+    }
+
+    @Test
     fun onMethodCall_whenBridgeThrowsPluginException_returnsErrorResponse() {
         val details = mapOf(
             "statusDetail" to mapOf(
@@ -365,8 +495,6 @@ internal class UrovoPosPluginTest {
 }
 
 private class FakePrinterBridge : UrovoPrinterApi {
-    var sdkAvailable: Boolean = true
-
     var initCalls: Int = 0
     var closeCalls: Int = 0
     var statusCalls: Int = 0
@@ -405,10 +533,6 @@ private class FakePrinterBridge : UrovoPrinterApi {
     var setGrayError: Throwable? = null
     var startPrintError: Throwable? = null
     var runJobError: Throwable? = null
-
-    override fun isSdkAvailable(): Boolean {
-        return sdkAvailable
-    }
 
     override fun printerInit() {
         initCalls += 1
@@ -469,6 +593,66 @@ private class FakeScannerBridge : UrovoScannerApi {
     override fun setEventCallback(callback: ((Map<String, Any?>) -> Unit)?) {}
 
     override fun setForegroundContext(context: Context?) {}
+}
+
+private class FakeBeeperBridge : UrovoBeeperApi {
+    var beepCalls: Int = 0
+    var stopCalls: Int = 0
+    var lastPattern: String? = null
+    var lastRepeat: Int? = null
+    var lastDurationMs: Int? = null
+    var lastIntervalMs: Int? = null
+    var lastVolume: Double? = null
+    var beepError: Throwable? = null
+    var stopError: Throwable? = null
+
+    override fun beeperBeep(
+        pattern: String,
+        repeat: Int,
+        durationMs: Int,
+        intervalMs: Int,
+        volume: Double,
+    ) {
+        beepCalls += 1
+        lastPattern = pattern
+        lastRepeat = repeat
+        lastDurationMs = durationMs
+        lastIntervalMs = intervalMs
+        lastVolume = volume
+        beepError?.let { throw it }
+    }
+
+    override fun beeperStop() {
+        stopCalls += 1
+        stopError?.let { throw it }
+    }
+}
+
+private class FakeDeviceBridge : UrovoDeviceApi {
+    var sdkAvailable: Boolean = true
+    var statusCalls: Int = 0
+    var statusResult: Map<String, Any?> = mapOf(
+        "deviceManagerAvailable" to false,
+        "manufacturer" to "",
+        "brand" to "",
+        "model" to "",
+        "device" to "",
+        "androidVersion" to "",
+        "androidSdkInt" to 0,
+        "serialNumber" to null,
+        "tidSerialNumber" to null,
+        "docked" to null,
+        "timestampMs" to 1710000000000L,
+    )
+
+    override fun isSdkAvailable(): Boolean {
+        return sdkAvailable
+    }
+
+    override fun deviceGetStatus(): Map<String, Any?> {
+        statusCalls += 1
+        return statusResult
+    }
 }
 
 private class CapturingResult : MethodChannel.Result {

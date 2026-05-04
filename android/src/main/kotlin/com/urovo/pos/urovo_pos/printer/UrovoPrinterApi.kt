@@ -1,8 +1,6 @@
 package com.urovo.pos.urovo_pos.printer
 
 internal interface UrovoPrinterApi {
-    fun isSdkAvailable(): Boolean
-
     fun printerInit()
 
     fun printerClose()

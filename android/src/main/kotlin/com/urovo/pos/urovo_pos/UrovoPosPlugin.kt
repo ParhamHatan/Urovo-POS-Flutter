@@ -1,6 +1,10 @@
 package com.urovo.pos.urovo_pos
 
 import android.content.Context
+import com.urovo.pos.urovo_pos.beeper.UrovoBeeperApi
+import com.urovo.pos.urovo_pos.beeper.UrovoBeeperBridge
+import com.urovo.pos.urovo_pos.device.UrovoDeviceApi
+import com.urovo.pos.urovo_pos.device.UrovoDeviceBridge
 import com.urovo.pos.urovo_pos.printer.UrovoPrinterApi
 import com.urovo.pos.urovo_pos.printer.UrovoPrinterBridge
 import com.urovo.pos.urovo_pos.scanner.UrovoScannerApi
@@ -20,12 +24,16 @@ class UrovoPosPlugin() : FlutterPlugin, MethodCallHandler, EventChannel.StreamHa
     private lateinit var appContext: Context
     private lateinit var printerBridge: UrovoPrinterApi
     private lateinit var scannerBridge: UrovoScannerApi
+    private lateinit var beeperBridge: UrovoBeeperApi
+    private lateinit var deviceBridge: UrovoDeviceApi
     private var foregroundContext: Context? = null
     private var scannerEventSink: EventChannel.EventSink? = null
 
     internal constructor(testPrinterBridge: UrovoPrinterApi) : this() {
         printerBridge = testPrinterBridge
         scannerBridge = NoopScannerBridge()
+        beeperBridge = NoopBeeperBridge()
+        deviceBridge = NoopDeviceBridge(sdkAvailable = true)
     }
 
     internal constructor(
@@ -34,12 +42,28 @@ class UrovoPosPlugin() : FlutterPlugin, MethodCallHandler, EventChannel.StreamHa
     ) : this() {
         printerBridge = testPrinterBridge
         scannerBridge = testScannerBridge
+        beeperBridge = NoopBeeperBridge()
+        deviceBridge = NoopDeviceBridge(sdkAvailable = true)
+    }
+
+    internal constructor(
+        testPrinterBridge: UrovoPrinterApi,
+        testScannerBridge: UrovoScannerApi,
+        testBeeperBridge: UrovoBeeperApi,
+        testDeviceBridge: UrovoDeviceApi,
+    ) : this() {
+        printerBridge = testPrinterBridge
+        scannerBridge = testScannerBridge
+        beeperBridge = testBeeperBridge
+        deviceBridge = testDeviceBridge
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         appContext = binding.applicationContext
         printerBridge = UrovoPrinterBridge(appContext)
         scannerBridge = UrovoScannerBridge(appContext)
+        beeperBridge = UrovoBeeperBridge()
+        deviceBridge = UrovoDeviceBridge()
         scannerBridge.setEventCallback(::emitScannerEvent)
         scannerBridge.setForegroundContext(foregroundContext)
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME)
@@ -53,6 +77,7 @@ class UrovoPosPlugin() : FlutterPlugin, MethodCallHandler, EventChannel.StreamHa
         scannerEventChannel.setStreamHandler(null)
         scannerBridge.setEventCallback(null)
         scannerBridge.setForegroundContext(null)
+        beeperBridge.beeperStop()
         scannerEventSink = null
     }
 
@@ -60,7 +85,11 @@ class UrovoPosPlugin() : FlutterPlugin, MethodCallHandler, EventChannel.StreamHa
         val response = try {
             when (call.method) {
                 METHOD_IS_SDK_AVAILABLE -> {
-                    UrovoPluginResponse.ok(data = printerBridge.isSdkAvailable())
+                    UrovoPluginResponse.ok(data = deviceBridge.isSdkAvailable())
+                }
+
+                METHOD_DEVICE_GET_STATUS -> {
+                    UrovoPluginResponse.ok(data = deviceBridge.deviceGetStatus())
                 }
 
                 METHOD_PRINTER_INIT -> {
@@ -112,6 +141,28 @@ class UrovoPosPlugin() : FlutterPlugin, MethodCallHandler, EventChannel.StreamHa
 
                 METHOD_SCANNER_STOP -> {
                     scannerBridge.scannerStop()
+                    UrovoPluginResponse.ok()
+                }
+
+                METHOD_BEEPER_BEEP -> {
+                    val args = optionalArgumentsMap(call.arguments)
+                    val pattern = (args["pattern"] as? String) ?: "short"
+                    val repeat = parseOptionalInt(args["repeat"], "repeat") ?: 1
+                    val durationMs = parseOptionalInt(args["durationMs"], "durationMs") ?: 120
+                    val intervalMs = parseOptionalInt(args["intervalMs"], "intervalMs") ?: 80
+                    val volume = parseOptionalDouble(args["volume"], "volume") ?: 1.0
+                    beeperBridge.beeperBeep(
+                        pattern = pattern,
+                        repeat = repeat,
+                        durationMs = durationMs,
+                        intervalMs = intervalMs,
+                        volume = volume,
+                    )
+                    UrovoPluginResponse.ok()
+                }
+
+                METHOD_BEEPER_STOP -> {
+                    beeperBridge.beeperStop()
                     UrovoPluginResponse.ok()
                 }
 
@@ -203,6 +254,17 @@ class UrovoPosPlugin() : FlutterPlugin, MethodCallHandler, EventChannel.StreamHa
             )
     }
 
+    private fun parseOptionalDouble(value: Any?, fieldName: String): Double? {
+        if (value == null) {
+            return null
+        }
+        return (value as? Number)?.toDouble()
+            ?: throw UrovoPluginException(
+                errorCode = "invalid_argument",
+                message = "$fieldName must be a number.",
+            )
+    }
+
     private fun emitScannerEvent(event: Map<String, Any?>) {
         scannerEventSink?.success(event)
     }
@@ -212,6 +274,7 @@ class UrovoPosPlugin() : FlutterPlugin, MethodCallHandler, EventChannel.StreamHa
         private const val SCANNER_EVENT_CHANNEL_NAME = "urovo_pos/scanner_events"
 
         private const val METHOD_IS_SDK_AVAILABLE = "isUrovoSdkAvailable"
+        private const val METHOD_DEVICE_GET_STATUS = "deviceGetStatus"
         private const val METHOD_PRINTER_INIT = "printerInit"
         private const val METHOD_PRINTER_GET_STATUS = "printerGetStatus"
         private const val METHOD_PRINTER_GET_STATUS_DETAIL = "printerGetStatusDetail"
@@ -221,6 +284,8 @@ class UrovoPosPlugin() : FlutterPlugin, MethodCallHandler, EventChannel.StreamHa
         private const val METHOD_PRINTER_CLOSE = "printerClose"
         private const val METHOD_SCANNER_START = "scannerStart"
         private const val METHOD_SCANNER_STOP = "scannerStop"
+        private const val METHOD_BEEPER_BEEP = "beeperBeep"
+        private const val METHOD_BEEPER_STOP = "beeperStop"
     }
 }
 
@@ -232,4 +297,40 @@ private class NoopScannerBridge : UrovoScannerApi {
     override fun setEventCallback(callback: ((Map<String, Any?>) -> Unit)?) {}
 
     override fun setForegroundContext(context: Context?) {}
+}
+
+private class NoopBeeperBridge : UrovoBeeperApi {
+    override fun beeperBeep(
+        pattern: String,
+        repeat: Int,
+        durationMs: Int,
+        intervalMs: Int,
+        volume: Double,
+    ) {}
+
+    override fun beeperStop() {}
+}
+
+private class NoopDeviceBridge(
+    private val sdkAvailable: Boolean,
+) : UrovoDeviceApi {
+    override fun isSdkAvailable(): Boolean {
+        return sdkAvailable
+    }
+
+    override fun deviceGetStatus(): Map<String, Any?> {
+        return mapOf(
+            "deviceManagerAvailable" to false,
+            "manufacturer" to "",
+            "brand" to "",
+            "model" to "",
+            "device" to "",
+            "androidVersion" to "",
+            "androidSdkInt" to 0,
+            "serialNumber" to null,
+            "tidSerialNumber" to null,
+            "docked" to null,
+            "timestampMs" to System.currentTimeMillis(),
+        )
+    }
 }

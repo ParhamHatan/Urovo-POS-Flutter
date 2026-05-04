@@ -6,7 +6,7 @@
 - Runtime reflection boundary for vendor SDK integration.
 - Feature-first structure so scanner/beeper/pinpad can be added without API churn.
 
-## Current module layout (v0.2.0)
+## Current module layout (v0.3.0)
 
 - Dart public facade:
   - `lib/urovo_pos.dart`
@@ -24,6 +24,12 @@
   - `lib/src/scanner/urovo_scan_result.dart`
   - `lib/src/scanner/urovo_scanner_event.dart`
   - `lib/src/scanner/scanner_channel_contract.dart`
+- Beeper feature models/contracts:
+  - `lib/src/beeper/urovo_beeper_pattern.dart`
+  - `lib/src/beeper/beeper_channel_contract.dart`
+- Shared device status models/contracts:
+  - `lib/src/device/urovo_device_status.dart`
+  - `lib/src/device/device_channel_contract.dart`
 - Exceptions:
   - `lib/src/exceptions/urovo_printer_exception.dart`
 - Android plugin router:
@@ -31,6 +37,9 @@
 - Android reflection bridge:
   - `android/src/main/kotlin/com/urovo/pos/urovo_pos/printer/UrovoPrinterBridge.kt`
   - `android/src/main/kotlin/com/urovo/pos/urovo_pos/scanner/UrovoScannerBridge.kt`
+  - `android/src/main/kotlin/com/urovo/pos/urovo_pos/device/UrovoDeviceBridge.kt`
+- Android platform bridge:
+  - `android/src/main/kotlin/com/urovo/pos/urovo_pos/beeper/UrovoBeeperBridge.kt`
 
 ## Method channel contract
 
@@ -41,6 +50,7 @@ Scanner events channel: `urovo_pos/scanner_events`
 Current methods:
 
 - `isUrovoSdkAvailable`
+- `deviceGetStatus`
 - `printerInit`
 - `printerClose`
 - `printerGetStatus`
@@ -50,6 +60,8 @@ Current methods:
 - `printerRunJob`
 - `scannerStart`
 - `scannerStop`
+- `beeperBeep`
+- `beeperStop`
 
 Android returns structured payloads for every handled method:
 
@@ -71,6 +83,7 @@ Primary reflection target classes:
 - `com.urovo.sdk.print.PrinterProviderImpl`
 - `com.urovo.sdk.scanner.InnerScannerImpl`
 - `com.urovo.sdk.scanner.listener.ScannerListener`
+- `android.device.DeviceManager`
 - `com.google.zxing.BarcodeFormat`
 
 Optional runtime class for vendor status descriptions:
@@ -84,6 +97,9 @@ Bridge invokes methods like:
 - `addText`, `addTextLeft_Right`, `addTextLeft_Center_Right`
 - `addBarCode`, `addQrCode`, `addImage`
 - scanner `startScan`, `stopScan`
+- device `getDeviceId`, `getTIDSN`, `getDockerState`
+
+Beeper uses Android `ToneGenerator` on `STREAM_NOTIFICATION` and does not require proprietary Urovo classes.
 
 ## Error model
 

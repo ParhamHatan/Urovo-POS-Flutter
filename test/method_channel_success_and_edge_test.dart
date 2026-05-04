@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:urovo_pos/src/beeper/beeper_channel_contract.dart';
+import 'package:urovo_pos/src/device/device_channel_contract.dart';
 import 'package:urovo_pos/src/printer/printer_channel_contract.dart';
 import 'package:urovo_pos/src/scanner/scanner_channel_contract.dart';
 import 'package:urovo_pos/urovo_pos.dart';
@@ -99,6 +101,73 @@ void main() {
     );
     expect(methods, contains(ScannerChannelContract.scannerStart));
     expect(methods, contains(ScannerChannelContract.scannerStop));
+  });
+
+  test('beeperBeep/beeperStop success paths send expected payloads', () async {
+    final methods = <String>[];
+    Object? receivedBeepArgs;
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      methods.add(call.method);
+      if (call.method == BeeperChannelContract.beeperBeep) {
+        receivedBeepArgs = call.arguments;
+      }
+      return <String, Object?>{'code': 'ok', 'message': 'OK', 'data': null};
+    });
+
+    await platform.beeperBeep(
+      pattern: UrovoBeeperPattern.error,
+      repeat: 3,
+      durationMs: 250,
+      intervalMs: 50,
+      volume: 0.75,
+    );
+    await platform.beeperStop();
+
+    expect(
+      receivedBeepArgs,
+      <String, Object>{
+        'pattern': 'error',
+        'repeat': 3,
+        'durationMs': 250,
+        'intervalMs': 50,
+        'volume': 0.75,
+      },
+    );
+    expect(methods, contains(BeeperChannelContract.beeperBeep));
+    expect(methods, contains(BeeperChannelContract.beeperStop));
+  });
+
+  test('deviceGetStatus parses shared device status payload', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, DeviceChannelContract.deviceGetStatus);
+      return <String, Object?>{
+        'code': 'ok',
+        'message': 'OK',
+        'data': <String, Object?>{
+          'deviceManagerAvailable': true,
+          'manufacturer': 'Urovo',
+          'brand': 'Urovo',
+          'model': 'i9000S',
+          'device': 'i9000s',
+          'androidVersion': '11',
+          'androidSdkInt': 30,
+          'serialNumber': 'SN123',
+          'tidSerialNumber': 'TID123',
+          'docked': true,
+          'timestampMs': 1710000000000,
+        },
+      };
+    });
+
+    final status = await platform.deviceGetStatus();
+
+    expect(status.deviceManagerAvailable, isTrue);
+    expect(status.model, 'i9000S');
+    expect(status.serialNumber, 'SN123');
+    expect(status.tidSerialNumber, 'TID123');
+    expect(status.docked, isTrue);
+    expect(status.isLikelyUrovoDevice, isTrue);
   });
 
   test('scanner event streams parse and filter broadcast events', () async {
