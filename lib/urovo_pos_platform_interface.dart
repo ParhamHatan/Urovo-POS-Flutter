@@ -2,6 +2,8 @@
 library;
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:urovo_pos/src/beeper/urovo_beeper_pattern.dart';
+import 'package:urovo_pos/src/device/urovo_device_status.dart';
 import 'package:urovo_pos/src/printer/urovo_print_job.dart';
 import 'package:urovo_pos/src/printer/urovo_printer_status.dart';
 import 'package:urovo_pos/src/printer/urovo_printer_status_detail.dart';
@@ -30,6 +32,11 @@ abstract class UrovoPosPlatform extends PlatformInterface {
   /// Returns whether the Urovo SDK classes exist on current runtime.
   Future<bool> isUrovoSdkAvailable() {
     throw UnimplementedError('isUrovoSdkAvailable() has not been implemented.');
+  }
+
+  /// Returns a shared runtime device status snapshot.
+  Future<UrovoDeviceStatus> deviceGetStatus() {
+    throw UnimplementedError('deviceGetStatus() has not been implemented.');
   }
 
   /// Opens printer session.
@@ -88,5 +95,21 @@ abstract class UrovoPosPlatform extends PlatformInterface {
   /// Convenience broadcast stream that only emits decoded payloads.
   Stream<UrovoScanResult> get scannerDecodedStream {
     throw UnimplementedError('scannerDecodedStream has not been implemented.');
+  }
+
+  /// Plays a beeper tone pattern.
+  Future<void> beeperBeep({
+    required UrovoBeeperPattern pattern,
+    required int repeat,
+    required int durationMs,
+    required int intervalMs,
+    required double volume,
+  }) {
+    throw UnimplementedError('beeperBeep() has not been implemented.');
+  }
+
+  /// Stops active or scheduled beeper tones.
+  Future<void> beeperStop() {
+    throw UnimplementedError('beeperStop() has not been implemented.');
   }
 }

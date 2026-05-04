@@ -17,6 +17,20 @@ class LifecycleFakeUrovoPosPlatform with MockPlatformInterfaceMixin implements U
   Future<bool> isUrovoSdkAvailable() async => sdkAvailable;
 
   @override
+  Future<UrovoDeviceStatus> deviceGetStatus() async {
+    return UrovoDeviceStatus(
+      deviceManagerAvailable: false,
+      manufacturer: '',
+      brand: '',
+      model: '',
+      device: '',
+      androidVersion: '',
+      androidSdkInt: 0,
+      timestamp: DateTime.fromMillisecondsSinceEpoch(1710000000000),
+    );
+  }
+
+  @override
   Future<void> printerInit() async {
     _ensureSdk();
     initCalls += 1;
@@ -84,6 +98,18 @@ class LifecycleFakeUrovoPosPlatform with MockPlatformInterfaceMixin implements U
   Stream<UrovoScanResult> get scannerDecodedStream {
     return const Stream<UrovoScanResult>.empty();
   }
+
+  @override
+  Future<void> beeperBeep({
+    required UrovoBeeperPattern pattern,
+    required int repeat,
+    required int durationMs,
+    required int intervalMs,
+    required double volume,
+  }) async {}
+
+  @override
+  Future<void> beeperStop() async {}
 
   void _ensureSdk() {
     if (!sdkAvailable) {

@@ -15,9 +15,17 @@ class _DelegatingFakePlatform with MockPlatformInterfaceMixin implements UrovoPo
   int closeCalls = 0;
   int scannerStartCalls = 0;
   int scannerStopCalls = 0;
+  int beeperBeepCalls = 0;
+  int beeperStopCalls = 0;
+  int deviceStatusCalls = 0;
   int? grayLevel;
   int? scannerCameraId;
   int? scannerTimeoutMs;
+  UrovoBeeperPattern? beeperPattern;
+  int? beeperRepeat;
+  int? beeperDurationMs;
+  int? beeperIntervalMs;
+  double? beeperVolume;
 
   final UrovoPrinterStatusDetail detail = const UrovoPrinterStatusDetail(
     status: UrovoPrinterStatus.busy,
@@ -34,9 +42,28 @@ class _DelegatingFakePlatform with MockPlatformInterfaceMixin implements UrovoPo
       timestamp: DateTime.fromMillisecondsSinceEpoch(1710000000000),
     ),
   );
+  final UrovoDeviceStatus deviceStatus = UrovoDeviceStatus(
+    deviceManagerAvailable: true,
+    manufacturer: 'Urovo',
+    brand: 'Urovo',
+    model: 'i9000S',
+    device: 'i9000s',
+    androidVersion: '11',
+    androidSdkInt: 30,
+    serialNumber: 'SN123',
+    tidSerialNumber: 'TID123',
+    docked: false,
+    timestamp: DateTime.fromMillisecondsSinceEpoch(1710000000000),
+  );
 
   @override
   Future<bool> isUrovoSdkAvailable() async => true;
+
+  @override
+  Future<UrovoDeviceStatus> deviceGetStatus() async {
+    deviceStatusCalls += 1;
+    return deviceStatus;
+  }
 
   @override
   Future<void> printerInit() async {
@@ -100,6 +127,27 @@ class _DelegatingFakePlatform with MockPlatformInterfaceMixin implements UrovoPo
   Stream<UrovoScanResult> get scannerDecodedStream {
     return Stream<UrovoScanResult>.value(scannerEvent.result!);
   }
+
+  @override
+  Future<void> beeperBeep({
+    required UrovoBeeperPattern pattern,
+    required int repeat,
+    required int durationMs,
+    required int intervalMs,
+    required double volume,
+  }) async {
+    beeperBeepCalls += 1;
+    beeperPattern = pattern;
+    beeperRepeat = repeat;
+    beeperDurationMs = durationMs;
+    beeperIntervalMs = intervalMs;
+    beeperVolume = volume;
+  }
+
+  @override
+  Future<void> beeperStop() async {
+    beeperStopCalls += 1;
+  }
 }
 
 class _BarePlatform extends UrovoPosPlatform {}
@@ -116,6 +164,7 @@ void main() {
     UrovoPosPlatform.instance = fake;
 
     expect(await UrovoPos.isUrovoSdkAvailable(), isTrue);
+    final deviceStatus = await UrovoPos.deviceGetStatus();
 
     await UrovoPos.printerInit();
     expect(await UrovoPos.printerGetStatus(), UrovoPrinterStatus.busy);
@@ -134,7 +183,16 @@ void main() {
     final scannerEvent = await UrovoPos.scannerEvents.first;
     final scannerDecode = await UrovoPos.scannerDecodedStream.first;
     await UrovoPos.scannerStop();
+    await UrovoPos.beeperBeep(
+      pattern: UrovoBeeperPattern.warning,
+      repeat: 2,
+      duration: const Duration(milliseconds: 200),
+      interval: const Duration(milliseconds: 40),
+      volume: 0.5,
+    );
+    await UrovoPos.beeperStop();
 
+    expect(deviceStatus.model, 'i9000S');
     expect(fake.initCalls, 1);
     expect(fake.statusCalls, 1);
     expect(fake.statusDetailCalls, 1);
@@ -149,12 +207,21 @@ void main() {
     expect(fake.scannerTimeoutMs, 5000);
     expect(scannerEvent.type, UrovoScannerEventType.decoded);
     expect(scannerDecode.data, '123456');
+    expect(fake.deviceStatusCalls, 1);
+    expect(fake.beeperBeepCalls, 1);
+    expect(fake.beeperStopCalls, 1);
+    expect(fake.beeperPattern, UrovoBeeperPattern.warning);
+    expect(fake.beeperRepeat, 2);
+    expect(fake.beeperDurationMs, 200);
+    expect(fake.beeperIntervalMs, 40);
+    expect(fake.beeperVolume, 0.5);
   });
 
   test('base platform methods throw unimplemented errors', () {
     final platform = _BarePlatform();
 
     expect(platform.isUrovoSdkAvailable, throwsUnimplementedError);
+    expect(platform.deviceGetStatus, throwsUnimplementedError);
     expect(platform.printerInit, throwsUnimplementedError);
     expect(platform.printerGetStatus, throwsUnimplementedError);
     expect(platform.printerGetStatusDetail, throwsUnimplementedError);
@@ -172,6 +239,17 @@ void main() {
     expect(platform.scannerStop, throwsUnimplementedError);
     expect(() => platform.scannerEvents, throwsUnimplementedError);
     expect(() => platform.scannerDecodedStream, throwsUnimplementedError);
+    expect(
+      () => platform.beeperBeep(
+        pattern: UrovoBeeperPattern.short,
+        repeat: 1,
+        durationMs: 120,
+        intervalMs: 80,
+        volume: 1,
+      ),
+      throwsUnimplementedError,
+    );
+    expect(platform.beeperStop, throwsUnimplementedError);
   });
 
   test('printer exception toString includes type and message', () {

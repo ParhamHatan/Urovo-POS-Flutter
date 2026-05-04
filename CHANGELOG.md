@@ -1,3 +1,11 @@
+## 0.3.0
+
+- Added beeper APIs (`beeperBeep`, `beeperStop`) with named tone patterns and repeat/duration controls.
+- Added shared device status utility (`deviceGetStatus`) with Android build fields, DeviceManager availability, serial/TUSN identifiers, and dock state when available.
+- Added Android beeper and device bridges while keeping proprietary Urovo classes behind runtime checks/reflection.
+- Updated example app with `Device Status`, `Beep Success`, and `Stop Beeper` actions.
+- Updated README and docs for the `v0.3.0` scope.
+
 ## 0.2.0
 
 - Added scanner APIs (`scannerStart`, `scannerStop`) and scanner event streams (`scannerEvents`, `scannerDecodedStream`).

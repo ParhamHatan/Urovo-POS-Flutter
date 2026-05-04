@@ -3,6 +3,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:urovo_pos/src/beeper/urovo_beeper_pattern.dart';
+import 'package:urovo_pos/src/device/urovo_device_status.dart';
 import 'package:urovo_pos/src/exceptions/urovo_printer_exception.dart';
 import 'package:urovo_pos/src/printer/urovo_print_enums.dart';
 import 'package:urovo_pos/src/printer/urovo_print_job.dart';
@@ -13,6 +15,8 @@ import 'package:urovo_pos/src/scanner/urovo_scan_result.dart';
 import 'package:urovo_pos/src/scanner/urovo_scanner_event.dart';
 import 'package:urovo_pos/urovo_pos_platform_interface.dart';
 
+export 'package:urovo_pos/src/beeper/urovo_beeper_pattern.dart';
+export 'package:urovo_pos/src/device/urovo_device_status.dart';
 export 'package:urovo_pos/src/exceptions/urovo_printer_exception.dart';
 export 'package:urovo_pos/src/printer/urovo_print_enums.dart';
 export 'package:urovo_pos/src/printer/urovo_print_job.dart';
@@ -24,11 +28,16 @@ export 'package:urovo_pos/src/scanner/urovo_scanner_event.dart';
 
 /// Entry point for interacting with the Urovo Android POS plugin.
 ///
-/// This API exposes printer and scanner operations.
+/// This API exposes printer, scanner, beeper, and shared device operations.
 abstract final class UrovoPos {
   /// Returns whether Urovo SDK classes are available at runtime.
   static Future<bool> isUrovoSdkAvailable() {
     return UrovoPosPlatform.instance.isUrovoSdkAvailable();
+  }
+
+  /// Returns a shared runtime snapshot for the Android/Urovo device.
+  static Future<UrovoDeviceStatus> deviceGetStatus() {
+    return UrovoPosPlatform.instance.deviceGetStatus();
   }
 
   /// Opens a printer session.
@@ -94,6 +103,31 @@ abstract final class UrovoPos {
   /// Convenience broadcast stream that only emits decoded payloads.
   static Stream<UrovoScanResult> get scannerDecodedStream {
     return UrovoPosPlatform.instance.scannerDecodedStream;
+  }
+
+  /// Plays a short beeper tone pattern.
+  ///
+  /// [volume] is normalized to `0.0..1.0`. Native Android validates the final
+  /// values and returns `invalid_argument` for unsupported ranges.
+  static Future<void> beeperBeep({
+    UrovoBeeperPattern pattern = UrovoBeeperPattern.short,
+    int repeat = 1,
+    Duration duration = const Duration(milliseconds: 120),
+    Duration interval = const Duration(milliseconds: 80),
+    double volume = 1,
+  }) {
+    return UrovoPosPlatform.instance.beeperBeep(
+      pattern: pattern,
+      repeat: repeat,
+      durationMs: duration.inMilliseconds,
+      intervalMs: interval.inMilliseconds,
+      volume: volume,
+    );
+  }
+
+  /// Stops any active or scheduled beeper tone.
+  static Future<void> beeperStop() {
+    return UrovoPosPlatform.instance.beeperStop();
   }
 
   /// Builds and prints a sample receipt job.

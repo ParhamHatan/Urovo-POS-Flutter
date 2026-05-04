@@ -87,6 +87,24 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
     });
   }
 
+  Future<void> _readDeviceStatus() async {
+    await _run('Reading device status...', () async {
+      final status = await UrovoPos.deviceGetStatus();
+      setState(() {
+        _status = status.isLikelyUrovoDevice
+            ? 'Urovo device status ready'
+            : 'Device status ready';
+        _logs.insert(
+          0,
+          'deviceStatus: manager=${status.deviceManagerAvailable} '
+          'model=${status.manufacturer} ${status.model} android=${status.androidVersion} '
+          'sn=${status.serialNumber ?? '-'} tid=${status.tidSerialNumber ?? '-'} '
+          'docked=${status.docked?.toString() ?? '-'}',
+        );
+      });
+    });
+  }
+
   Future<void> _initPrinter() async {
     await _run('Initializing printer...', () async {
       await UrovoPos.printerInit();
@@ -296,10 +314,7 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
           'مبلغ',
           'تعداد',
           'کالا',
-          style: const UrovoTextStyle(
-            bold: true,
-            fontAsset: _persianFontAsset,
-          ),
+          style: const UrovoTextStyle(bold: true, fontAsset: _persianFontAsset),
         )
         ..blackLine();
 
@@ -383,6 +398,32 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
     });
   }
 
+  Future<void> _beepSuccess() async {
+    await _run('Playing beeper...', () async {
+      await UrovoPos.beeperBeep(
+        pattern: UrovoBeeperPattern.success,
+        repeat: 2,
+        duration: const Duration(milliseconds: 120),
+        interval: const Duration(milliseconds: 80),
+        volume: 1,
+      );
+      setState(() {
+        _status = 'Beeper played';
+        _logs.insert(0, 'beeperBeep: success x2');
+      });
+    });
+  }
+
+  Future<void> _beeperStop() async {
+    await _run('Stopping beeper...', () async {
+      await UrovoPos.beeperStop();
+      setState(() {
+        _status = 'Beeper stopped';
+        _logs.insert(0, 'beeperStop: OK');
+      });
+    });
+  }
+
   void _onScannerEvent(UrovoScannerEvent event) {
     if (!mounted) {
       return;
@@ -460,6 +501,10 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
                     child: const Text('Check SDK'),
                   ),
                   ElevatedButton(
+                    onPressed: _isBusy ? null : _readDeviceStatus,
+                    child: const Text('Device Status'),
+                  ),
+                  ElevatedButton(
                     onPressed: _isBusy ? null : _initPrinter,
                     child: const Text('Init Printer'),
                   ),
@@ -498,6 +543,14 @@ class _UrovoExampleAppState extends State<UrovoExampleApp> {
                   ElevatedButton(
                     onPressed: _isBusy ? null : _scannerStop,
                     child: const Text('Stop Scan'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isBusy ? null : _beepSuccess,
+                    child: const Text('Beep Success'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isBusy ? null : _beeperStop,
+                    child: const Text('Stop Beeper'),
                   ),
                 ],
               ),

@@ -27,7 +27,7 @@ internal class UrovoPrinterBridge(
     private var isPrinterInitialized = false
     private val fontCacheDir: File by lazy { File(appContext.cacheDir, "urovo_fonts") }
 
-    override fun isSdkAvailable(): Boolean {
+    private fun isPrinterSdkAvailable(): Boolean {
         return hasClass(PRINTER_PROVIDER_CLASS)
     }
 
@@ -560,7 +560,7 @@ internal class UrovoPrinterBridge(
     }
 
     private fun ensureSdkAvailable() {
-        if (!isSdkAvailable()) {
+        if (!isPrinterSdkAvailable()) {
             throw UrovoPluginException(
                 errorCode = "sdk_not_found",
                 message = "Urovo SDK classes were not found. Add urovoSDK*.aar to your Android app module.",

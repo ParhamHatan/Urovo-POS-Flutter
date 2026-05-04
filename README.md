@@ -9,13 +9,14 @@
 
 Standalone Flutter plugin for Urovo POS devices, designed for incremental feature delivery.
 
-`v0.2.0` implements **printing + scanner** and keeps a modular structure for future additions (beeper, pinpad) in the same package.
+`v0.3.0` implements **printing + scanner + beeper + shared device status** and keeps a modular structure for future additions (pinpad, capability registry) in the same package.
 
 Tested on Urovo SDK version `v1.0.13`.
 
-## v0.2.0 scope
+## v0.3.0 scope
 
 - Runtime SDK availability check (`isUrovoSdkAvailable`)
+- Shared device status utility (`deviceGetStatus`)
 - Printer lifecycle
   - `printerInit`
   - `printerClose`
@@ -42,10 +43,12 @@ Tested on Urovo SDK version `v1.0.13`.
   - `scannerStop()`
   - `scannerEvents` (typed event stream)
   - `scannerDecodedStream` (decoded payload stream)
+- Beeper APIs
+  - `beeperBeep(...)`
+  - `beeperStop()`
 
 ## Upcoming features (roadmap)
 
-- `v0.3.0`: beeper APIs + shared device status utilities
 - `v0.4.0`: pinpad wrappers (non-sensitive operations only)
 - `v0.5.0`: capability registry (`isPrinterAvailable`, `isScannerAvailable`, `isPinpadAvailable`)
 - `v1.0.0`: stabilized printing + scanning contract
@@ -114,6 +117,8 @@ flutter run
 
 4. In the example UI, use this test flow:
    - `Check SDK`
+   - `Device Status`
+   - `Beep Success`
    - `Init Printer`
    - `Get Status`
    - `Print Sample Text`
@@ -122,6 +127,7 @@ flutter run
    - `Close Printer`
    - `Start Scan` (scan a barcode/QR and observe logs)
    - `Stop Scan`
+   - `Stop Beeper`
 
 5. Confirm logs show successful operations and printed output matches commands.
 
@@ -235,6 +241,24 @@ Future<void> stopScanFlow() async {
 
 Scanner callbacks are delivered through `scannerEvents`, and decoded payloads only are available via `scannerDecodedStream`.
 
+## Device status and beeper usage (v0.3.0)
+
+```dart
+final status = await UrovoPos.deviceGetStatus();
+print('${status.manufacturer} ${status.model}');
+print('SN: ${status.serialNumber ?? '-'}');
+
+await UrovoPos.beeperBeep(
+  pattern: UrovoBeeperPattern.success,
+  repeat: 2,
+  duration: const Duration(milliseconds: 120),
+  interval: const Duration(milliseconds: 80),
+  volume: 1,
+);
+
+await UrovoPos.beeperStop();
+```
+
 ## Lifecycle contract (manual)
 
 This plugin uses manual lifecycle control. It does not auto-open or auto-close printer sessions.
@@ -283,3 +307,4 @@ Mapped printer status enum:
 - `print_failed`: `startPrint` failed. Check status detail message and recommendation.
 - `invalid_argument`: malformed job payload or invalid gray/input values.
 - Scanner errors/timeouts/cancel events are delivered via `scannerEvents` instead of throwing exceptions.
+- Beeper `invalid_argument`: unsupported pattern/range for repeat, duration, interval, or volume.
